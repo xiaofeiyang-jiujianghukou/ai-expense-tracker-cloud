@@ -1,0 +1,1 @@
+import{r as l}from"./user-Ch5wxfN8.js";function s(t){return l.post("/bills/list",t)}function i(t){return l.post("/bills",t)}function r(t){return l.post("/bills/update",t)}function n(t){return l.post("/bills/delete",{id:t})}export{i as c,n as d,s as l,r as u};

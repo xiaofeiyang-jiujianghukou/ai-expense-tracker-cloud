@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Test-NetConnection *)",
+      "Bash(Get-Process -Name *)",
+      "Bash(mvn --version)",
+      "Bash(Test-Path *)",
+      "Bash(Get-Location)",
+      "WebSearch",
+      "WebFetch"
+    ]
+  },
+  "enableAllProjectMcpServers": true
+}

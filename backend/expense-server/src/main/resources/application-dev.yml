@@ -1,0 +1,4 @@
+# Dev profile - uses env vars from application.yml defaults
+# Override any dev-specific settings here
+server:
+  port: ${SERVER_PORT:8080}
