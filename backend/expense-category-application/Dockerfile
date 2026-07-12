@@ -44,4 +44,4 @@ COPY --from=builder /build/expense-category-application/target/*.jar app.jar
 USER appuser
 EXPOSE 8082
 
-ENTRYPOINT ["java", "-Xms128m", "-Xmx256m", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-Xms128m", "-Xmx384m", "-jar", "app.jar"]
