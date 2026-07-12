@@ -1,0 +1,22 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: expense-cloud
+      sentinel:
+        transport:
+          dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
+          port: 8720
+        eager: true
+
+# JWT — user-service is the only service that generates tokens
+jwt:
+  secret: ${JWT_SECRET:YWktZXhwZW5zZS10cmFja2VyLWp3dC1kZWM2MjMyZC0wNjczLTRkYTMtODNlZS1lODgzN2NiNTJkY2Q=}
+  expiration: 604800000

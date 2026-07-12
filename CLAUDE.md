@@ -11,7 +11,7 @@
 
 - **当前版本**: V4.0
 - **核心目标**: 将 V1~V3 单体应用拆分为微服务架构 — Docker 容器化、K8s 编排、CI/CD、云部署
-- **项目阶段**: Sprint 17 — V4.0 工程化改造启动
+- **项目阶段**: Sprint 17 完成 → Sprint 18（Spring Cloud 微服务拆分）待启动
 - **架构模式**: Spring Cloud 微服务 + Docker + K8s（前身：Maven 多模块单体）
 - **代码来源**: 完全复制自单体项目 `ai-expense-tracker`（V3.0 最终版），模块间零直接依赖，已具备微服务拆分基础
 
@@ -35,6 +35,13 @@
 | AgentScope | 2.0.0-RC5 | AI 智能体框架（V2.0） |
 | DeepSeek API | v4-pro | LLM 模型 |
 | Maven | 3.x | 构建 & 多模块管理 |
+| Spring Cloud | 2024.0.0 | 微服务框架 |
+| Spring Cloud Alibaba | 2023.0.1.2 | Nacos + Sentinel |
+| Nacos | 2.3.2 | 注册中心 + 配置中心 |
+| Sentinel | 1.8.8 | 流量控制 + 熔断降级 |
+| Docker | 26+ | 容器化 |
+| Prometheus | 3.3 | 指标采集 |
+| Grafana | 11.6 | 监控可视化 |
 
 ### 前端
 
@@ -78,31 +85,35 @@
 ai-expense-tracker-cloud/
 ├── CLAUDE.md
 ├── README.md
+├── docker-compose.yml                 # V4.0 容器编排（11 个容器）
+├── prometheus/
+│   └── prometheus.yml                 # Prometheus 采集配置
+├── grafana/
+│   ├── dashboards/
+│   │   ├── dashboard.yml              # Dashboard 注册
+│   │   └── expense-cloud-overview.json # 监控仪表盘
+│   └── datasources/
+│       └── prometheus.yml             # Prometheus 数据源
 ├── docs/
 │   ├── project-design.md              # 原始设计（只读参考）
 │   ├── project-requirements.md        # 需求文档（持续更新）
-│   ├── architecture-design.md         # 架构设计（持续更新）
-│   ├── development-plan.md            # 开发计划
-│   ├── iteration-log.md               # 迭代日志
+│   ├── architecture-design.md         # 架构设计（持续更新，含 V4.0 §10）
+│   ├── development-plan.md            # 开发计划（Sprint 0-19）
+│   ├── iteration-log.md               # 迭代日志（#001-#015）
 │   └── design/
 │       └── v1-design-doc.md           # V1.0 设计稿
 │
 ├── backend/                           # Maven 多模块父项目
-│   ├── pom.xml                        # 父 POM（依赖管理 + 模块聚合）
-│   ├── expense-common/                # 公共模块（工具、异常、常量、通用 DTO）
-│   ├── expense-security/              # 安全模块（JWT、Security Config、Filter）
-│   ├── expense-user/                  # 用户模块
-│   │   ├── controller/
-│   │   ├── manager/                    # Manager 编排层（具体类，无 impl/）
-│   │   ├── service/                    # 原子业务（具体类，无 impl/）
-│   │   ├── mapper/
-│   │   ├── entity/
-│   │   └── dto/
-│   ├── expense-category/              # 分类模块（同结构）
-│   ├── expense-bill/                  # 账单模块（同结构）
-│   ├── expense-statistics/            # 统计模块（同结构）
-│   ├── expense-ai/                    # AI 智能模块（V2.0，不建表，纯计算/分析）
-│   └── expense-server/                # 启动模块（Spring Boot 入口 + 全局配置 + 跨模块 Manager）
+│   ├── pom.xml                        # 父 POM（Spring Cloud BOM + Alibaba BOM + 模块聚合）
+│   ├── expense-common/                # 公共模块（XUserFilter + SecurityUtil + ApiResponse）
+│   ├── expense-security/              # 安全模块（JwtTokenProvider，JwtAuthFilter→Gateway）
+│   ├── expense-gateway/               # [V4.0 新建] Spring Cloud Gateway + JWT 校验
+│   ├── expense-user/                  # user-service（:8081，含 UserServiceApplication）
+│   ├── expense-category/              # category-service（:8082）
+│   ├── expense-bill/                  # bill-service（:8083，含 budget）
+│   ├── expense-statistics/            # statistics-service（:8084）
+│   ├── expense-ai/                    # ai-service（:8085，SSE + Redis）
+│   └── expense-server/                # 启动模块（待移除，V4.0 后各服务独立启动）
 │
 └── frontend/                          # Vue 3 前端项目（独立）
     ├── package.json
@@ -219,6 +230,7 @@ CategoryService {
 - JWT Bearer Token 认证，统一响应体 `{ code, message, data }`
 - **仅使用 `@GetMapping` 和 `@PostMapping`**，禁止 `@PutMapping` / `@DeleteMapping`
 - `@GetMapping` 仅限单参数（路径变量 `/{id}`）；多参数筛选一律 `@PostMapping`
+- **`@PostMapping` 必须使用 `@RequestBody`，严禁使用 `@RequestParam`**
 - 写操作不返回对象，只返回 `ApiResponse<Void>`
 - 禁止全限定类名内联（如 `com.xxx.Foo`），无冲突时一律用 import
 
@@ -266,6 +278,16 @@ CategoryService {
       feat(frontend): add dashboard page
 ```
 
+**提交内容规范**：只提交必要的代码、文档、配置文件。以下内容**严禁提交**：
+- 构建产物：`target/`、`*.jar`、`node_modules/`、`dist/`
+- 运行时数据：日志文件、数据库 volume 数据、截图文件
+- 测试临时文件：Playwright 快照/日志、浏览器截图
+- 大文件：>5MB 的二进制文件（Arthas jar、Docker 镜像 layer 等）
+- IDE 配置：`.idea/`、`.vscode/`
+- 以上全部写入 `.gitignore`
+
+**提交前检查**：`git status` 确认只有代码/文档/配置变更，无上述禁止项。
+
 ### 5.8 枚举与常量规范
 
 - **固定值集合（如 INCOME/EXPENSE）必须定义枚举**，禁止魔法字符串散落各层
@@ -295,7 +317,18 @@ CategoryService {
 - **高频命令缓存**：执行超过 3 次的命令序列（如重启后端）记录到 troubleshooting.md，下次直接复制
 - **安全分类器拦截**：PowerShell 命令含敏感信息（API key、密码等）会被拦截。用 `run_in_background: true` 绕过；或分步先在 shell 设 env vars，再单独执行命令
 - **命名防冲突**：项目专用名词避开 Java/Spring 通用关键字（如 `Bill`/`BillType` 而非 `Transaction`/`TransactionType`）— 详见 §5.8 枚举规范
+- **🚫 应用模块间禁止引用（优先级：最高）**：`*-application` 模块之间不能互相添加 Maven 依赖。服务间通信只能通过 Feign（API 模块）+ 网关，或共享 Common 模块。例如 bill-application 不能依赖 budget，反之亦然。要合并功能就把代码挪到一个模块里，不要把整个应用模块当依赖引入。
 - 遇到未知错误先追根究底，不在同一个问题上反复尝试同一种方法
+- **🎯 解决问题优先，不降级绕路（优先级：最高）**：面对问题时优先找到正确方案并解决它，而不是找替代路径绕过去。例如 Dockerfile 模块名不匹配 → 修正 Dockerfile 对齐，而非切回 mvn spring-boot:run。只有正确方案确实不可行（如外部依赖缺失）时才考虑迂回方式。**任何降级/绕路决定必须先征求用户同意**，不得自行决定。笨方式（逐个手动启动）是最后手段，能用工具/框架能力批量解决的优先用工具。
+- **🚫 禁止自行降级或绕过（优先级：最高）**：遇到编译失败、启动失败、依赖解析失败等问题时，**必须先分析根因并反馈给用户**，由用户决定是否降级、绕过或采用替代方案。严禁自行执行以下操作：
+  - 手动复制 JAR 到本地仓库绕过 `mvn install`/`mvn deploy`
+  - 跳过失败模块只编译部分模块
+  - 注释掉报错代码
+  - 硬编码绕过配置检查
+  - 任何其他绕过标准构建/部署流程的操作
+  - **正确流程**：分析问题 → 提供方案（含利弊） → 用户选择 → 执行
+- **容器镜像拉取规范**：启动 Docker 容器前，必须先询问用户是否需要使用私有镜像仓库，避免直接从 Docker Hub 拉取因网络原因失败。用户确认镜像地址后再执行。
+- **⚡ 容器最小资源配置（优先级：高）**：所有 Docker 容器必须配置 `deploy.resources.limits`（memory + cpus），遵循最小必要原则。JVM 容器需同时设置 `-Xms` / `-Xmx` 确保堆内存小于容器限制，否则 OOMKilled。新加容器时主动去查官方/社区推荐的最低配置，不拍脑袋。
 
 ### 5.8 AI 模块规范
 
@@ -360,6 +393,9 @@ CategoryService {
 ☐ projects/.../memory/ 下的进展状态文件已更新
 ☐ projects/.../MEMORY.md 索引已包含本次进展的指针
 ☐ 下次继续的任务和上下文已明确记录（重启命令、环境变量、当前验收进度）
+☐ 本 Session 中新授权的「无需再问」命令已写入全局权限配置（~/.claude/settings.json）
+   — 包括但不限于：PowerShell(*) / mcp__* / WebSearch / WebFetch
+   — 用泛模式（如 mvn *），不要复制整条具体命令
 ```
 
 **未完成以上清单不得 /exit。**

@@ -11,7 +11,7 @@
         <relativePath/>
     </parent>
 
-    <groupId>com.example</groupId>
+    <groupId>com.xiaofeiyang</groupId>
     <artifactId>expense-cloud</artifactId>
     <version>4.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
@@ -19,15 +19,26 @@
     <description>AI-powered personal finance system — microservices (V4.0)</description>
 
     <modules>
-        <module>expense-common</module>
+        <!-- Shared -->
+        <module>expense-framework</module>
         <module>expense-security</module>
+        <!-- Service APIs (lightweight Feign clients, published) -->
+        <module>expense-category-api</module>
+        <module>expense-bill-api</module>
+        <module>expense-statistics-api</module>
+        <!-- Service Common (shared VOs, published — standard JAR, no fat JAR) -->
+        <module>expense-category-common</module>
+        <module>expense-bill-common</module>
+        <module>expense-statistics-common</module>
+        <!-- Service applications (runtime, NOT published as dependency) -->
         <module>expense-user</module>
-        <module>expense-category</module>
-        <module>expense-bill</module>
-        <module>expense-statistics</module>
+        <module>expense-category-application</module>
+        <module>expense-bill-application</module>
+        <module>expense-statistics-application</module>
         <module>expense-ai</module>
         <module>expense-budget</module>
         <module>expense-server</module>
+        <module>expense-gateway</module>
     </modules>
 
     <properties>
@@ -38,10 +49,30 @@
         <jjwt.version>0.12.6</jjwt.version>
         <flyway.version>10.22.0</flyway.version>
         <agentscope.version>2.0.0-RC5</agentscope.version>
+        <spring-cloud.version>2024.0.0</spring-cloud.version>
+        <spring-cloud-alibaba.version>2023.0.1.2</spring-cloud-alibaba.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
+            <!-- Spring Cloud BOM -->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Spring Cloud Alibaba BOM -->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
             <!-- MyBatis-Plus -->
             <dependency>
                 <groupId>com.baomidou</groupId>
@@ -128,44 +159,87 @@
                 <scope>test</scope>
             </dependency>
 
-            <!-- Internal Modules -->
+            <!-- Monitoring: actuator + micrometer managed by Spring Boot parent BOM -->
+
+            <!-- MySQL Connector (not managed by Spring Boot 3.x BOM) -->
             <dependency>
-                <groupId>com.example</groupId>
-                <artifactId>expense-common</artifactId>
+                <groupId>com.mysql</groupId>
+                <artifactId>mysql-connector-j</artifactId>
+                <version>9.2.0</version>
+                <scope>runtime</scope>
+            </dependency>
+
+            <!-- Internal Modules — APIs (Feign interfaces, publishable) -->
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-category-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.example</groupId>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-bill-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-statistics-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- Internal Modules — Common (shared VOs, standard JARs) -->
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-category-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-bill-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-statistics-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- Internal Modules — Shared -->
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-framework</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
                 <artifactId>expense-security</artifactId>
                 <version>${project.version}</version>
             </dependency>
+            <!-- Internal Modules — Applications (full runtime, not published) -->
             <dependency>
-                <groupId>com.example</groupId>
+                <groupId>com.xiaofeiyang</groupId>
                 <artifactId>expense-user</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.example</groupId>
-                <artifactId>expense-category</artifactId>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-category-application</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.example</groupId>
-                <artifactId>expense-bill</artifactId>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-bill-application</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.example</groupId>
-                <artifactId>expense-statistics</artifactId>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-statistics-application</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.example</groupId>
+                <groupId>com.xiaofeiyang</groupId>
                 <artifactId>expense-ai</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.example</groupId>
+                <groupId>com.xiaofeiyang</groupId>
                 <artifactId>expense-budget</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -187,4 +261,18 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-maven-plugin</artifactId>
+                    <configuration>
+                        <jvmArguments>-Xms128m -Xmx256m</jvmArguments>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
 </project>

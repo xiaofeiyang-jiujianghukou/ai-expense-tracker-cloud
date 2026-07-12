@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.example</groupId>
-        <artifactId>expense</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <groupId>com.xiaofeiyang</groupId>
+        <artifactId>expense-cloud</artifactId>
+        <version>4.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>expense-ai</artifactId>
@@ -15,33 +15,36 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>expense-common</artifactId>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-framework</artifactId>
+        </dependency>
+        <!-- Phase 1: direct calls to StatisticsManager, BillMapper -->
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-statistics-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>expense-bill</artifactId>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-bill-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>expense-category</artifactId>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-category-common</artifactId>
+        </dependency>
+        <!-- Feign clients for inter-service calls -->
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-statistics-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>expense-statistics</artifactId>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-category-api</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-bill-api</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-security</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
+        <!-- LLM -->
         <dependency>
             <groupId>io.agentscope</groupId>
             <artifactId>agentscope-openai-spring-boot-starter</artifactId>
@@ -55,5 +58,29 @@
             <artifactId>transmittable-thread-local</artifactId>
             <version>2.14.5</version>
         </dependency>
+        <!-- Redis (opt-in from framework) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- DB (Phase 1: transitive from bill/category/statistics) -->
+        <dependency>
+            <groupId>com.baomidou</groupId>
+            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>

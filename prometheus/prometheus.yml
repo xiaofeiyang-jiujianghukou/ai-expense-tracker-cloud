@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'expense-cloud'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets:
+          - 'gateway:8080'
+          - 'user-service:8081'
+          - 'category-service:8082'
+          - 'bill-service:8083'
+          - 'statistics-service:8084'
+          - 'ai-service:8085'
+        labels:
+          application: 'expense-cloud'

@@ -1,0 +1,26 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: ai-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: expense-cloud
+      sentinel:
+        transport:
+          dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
+          port: 8724
+        eager: true
+
+agentscope:
+  model:
+    provider: openai
+  openai:
+    api-key: ${LLM_API_KEY}
+    model-name: ${LLM_MODEL:deepseek-v4-pro}
+    base-url: ${LLM_BASE_URL:https://api.deepseek.com}
+    stream: true

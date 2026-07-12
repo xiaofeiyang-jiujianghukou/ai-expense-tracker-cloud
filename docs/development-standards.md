@@ -88,6 +88,367 @@ Spring Boot / MyBatis-Plus / Lombok / MySQL Driver / ...
   - 请求中按钮 Loading 防重复提交
 ```
 
+## 1.5 微服务模块拆分规范（V4.0+）
+
+> **优先级：高**。此规范是 V4.0 微服务架构的核心设计原则，适用于所有微服务间调用场景。
+
+### 三模块拆分模型
+
+每个需要对外提供 API 的微服务，必须拆分为三个独立 Maven 模块：
+
+```
+expense-category-api/                ← API 模块（轻量 JAR，对外发布）
+│   └── pom.xml                       依赖：仅 expense-common + openfeign
+│
+expense-category-application/        ← 应用模块（Spring Boot 可执行 JAR，只部署不发布）
+│   └── pom.xml                       依赖：-api + -common + 全部运行时依赖
+│
+(expense-category-common/)           ← 业务公共模块（可选，服务内部共享的 Entity/Utils）
+```
+
+| 模块 | 后缀 | 职责 | 发布 | 包大小 |
+|------|------|------|------|--------|
+| **API 模块** | `-api` | Feign 接口 + 对外 DTO | ✅ 发布到 Maven 仓库 | 几 KB（纯接口+POJO） |
+| **公共模块** | `-common` | 服务内部共享的 Entity/Utils/常量（可选） | ✅ 发布（如其他服务需要） | 小 |
+| **应用模块** | `-application` | Spring Boot 启动类 + Controller/Service/Mapper + 配置 | ❌ 只部署，不发布 | 几十 MB（含全部运行时依赖） |
+
+### 为什么拆？
+
+| 问题 | 不拆的后果 | 拆分后 |
+|------|-----------|--------|
+| **消费者引入过多依赖** | 依赖完整服务 JAR → 拉入 Spring Boot/MyBatis/MySQL 驱动等几十 MB 不必要依赖 | 消费者只依赖 `-api`，仅拉入 Feign 接口 + POJO |
+| **版本耦合** | 服务内部重构（不改 API），消费者被迫升级 | 内部变更只发 `-application`，消费者无感知 |
+| **编译速度** | 大 JAR 传递依赖拖慢消费方编译 | `-api` 几乎无传递依赖，编译秒级 |
+| **全局 API 模块** | 所有 Feign 接口集中一个模块，改一个影响全部 | 各服务独立 `-api`，边界清晰 |
+
+### 反模式（禁止）
+
+```
+❌ expense-api/  ← 全局共享 API 模块，所有 Feign 接口 + DTO 集中于此
+   ├── CategoryClient.java
+   ├── BillClient.java
+   └── StatisticsClient.java
+
+❌ expense-category/  ← 单模块服务，API 和实现混在一起
+   └── src/.../category/api/client/CategoryClient.java
+   └── src/.../category/service/CategoryService.java
+```
+
+### 正确做法（三模块：api / common / application）
+
+```
+✅ expense-category-api/           ← Feign 接口 + Feign DTO（轻量，< 10KB）
+│   └── src/.../category/api/
+│       ├── client/CategoryClient.java
+│       └── dto/CategoryDTO.java
+│
+✅ expense-category-common/        ← 共享运行时类（VO、Entity 等被其他模块引用的类）
+│   └── src/.../category/dto/
+│       ├── CategoryVO.java
+│       └── CategoryRequest.java
+│
+✅ expense-category-application/   ← Spring Boot 应用（只部署不发布为依赖）
+│   └── Spring Boot + controller + service + mapper
+│   └── 依赖 -api + -common
+```
+
+> **强制规则：**
+> 1. **每个微服务必须按 api / common / application 三模块拆分**，即使当前暂无消费者。预留结构方便未来复用。
+> 2. **任何 `-application` 模块不得被其他模块作为 dependency 引用。** 需要 Feign 调用就引 `-api`，需要共享类就引 `-common`。这从根本上杜绝 fat JAR 嵌套的类加载问题。
+
+### 依赖规则
+
+| 场景 | 依赖 | 说明 |
+|------|------|------|
+| **Feign 调用** | `expense-{service}-api` | 只引 Feign 接口 + Feign DTO，几 KB |
+| **引用共享类** | `expense-{service}-common` | VO、Entity 等，标准 JAR 无嵌套问题 |
+| **服务自身** | `-api` + `-common` + full runtime | `-application` 依赖前两个 |
+| **禁止** | ❌ 依赖其他服务的 `-application` | 会导致 fat JAR 嵌套，内部类 NoClassDefFoundError |
+
+### 包路径约定
+
+| 内容 | 包路径 | 所在模块 |
+|------|--------|---------|
+| Feign 接口 | `com.example.expense.{service}.api.client` | `-api` |
+| Feign DTO | `com.example.expense.{service}.api.dto` | `-api` |
+| 共享 VO / 请求 DTO | `com.example.expense.{service}.dto` | `-common` |
+| 应用实现 | `com.example.expense.{service}.controller/service/...` | `-application` |
+
+### @FeignClient 注解规范
+
+**必须包含四个属性：**
+
+```java
+@FeignClient(
+        name = "category-service",           // Nacos 服务名
+        contextId = "category-service-api",  // 唯一上下文 ID（避免 Bean 名冲突）
+        path = "/api/categories",            // 基础路径
+        url = "${category-service-api.url:}"   // 调试直连 URL（属性名=contextId.url，空=走 Nacos）
+)
+```
+
+| 属性 | 必填 | 说明 |
+|------|------|------|
+| `name` | ✅ | Nacos 注册的服务名 |
+| `contextId` | ✅ | 唯一标识，命名规范 `{服务名}-api` |
+| `path` | ✅ | 匹配 Controller 的 `@RequestMapping` |
+| `url` | ✅ | `${服务名.url:}` — **空默认值 = 走 Nacos 服务发现**；本地调试时设为 `http://localhost:808x` 绕过 Nacos 直连 |
+
+**调试用法：** 消费方 application.yml 中设置 `{contextId}.url` 即可绕过 Nacos：
+```yaml
+# 调试时直连 category-service，无需启动 Nacos
+category-service-api.url: http://localhost:8082
+```
+
+**多 FeignClient 场景：** 同一服务可以有多个不同 contextId 的 FeignClient，各自独立调试：
+```yaml
+category-service-api.url: http://localhost:8082        # 主接口
+category-service-admin-api.url: http://localhost:9082  # 管理接口
+```
+
+### 反例代码
+
+```java
+// ❌ 全局共享 — 无服务归属
+package com.example.expense.api.client;
+```
+
+```java
+// ✅ 服务专属 API 模块
+package com.example.expense.category.api.client;
+```
+
+## 1.6 微服务基础框架 Starter 规范（V4.0+）
+
+> **优先级：高**。`expense-framework` 是统一的基础设施 starter，所有微服务只需引用这一个依赖即可获得全部基础能力。**新增任何公共组件时必须遵守本节规范。**
+
+### 1.6.1 组件分类：必要组件 vs 非必要组件
+
+引入新组件时，第一步是判断它属于哪一类：
+
+| 分类 | 定义 | 判断标准 | 加载方式 |
+|------|------|---------|---------|
+| **必要组件** | 每个微服务都必须使用的 | 网关、user、category、bill、statistics、ai 六个服务**全部需要** | 始终加载，无需条件注解 |
+| **非必要组件** | 仅部分服务需要 | 至少存在一个服务**不需要** | `@ConditionalOnClass`，服务 POM opt-in |
+
+**判定流程：**
+```
+新组件 → 遍历所有微服务 → 全部需要？
+  ├── 是 → 必要组件 → 始终加载
+  └── 否 → 非必要组件 → @ConditionalOnClass opt-in
+```
+
+### 1.6.2 必要组件实现规范
+
+必要组件**不**加 `@ConditionalOnClass`，框架 POM 中**不**标记 `optional`。
+
+**属性文件：** 放在 `framework-defaults.properties`（全局加载，`FrameworkAutoConfiguration` 上通过 `@PropertySource` 引入）。
+
+**Auto-configuration 类：** 不加条件注解，直接通过 `@Import` 或 `@Bean` 注册。
+
+**示例：**
+```java
+// ✅ 必要组件 — 所有服务都需要 Actuator，无需条件
+// framework-defaults.properties:
+management.endpoints.web.exposure.include=health,info,prometheus,metrics
+```
+
+```
+当前必要组件：
+├── Web + MVC           (spring-boot-starter-web，非 optional)
+├── Security            (XUserFilter + SecurityFilterChain)
+├── Feign 拦截器         (UserContextFeignInterceptor，全局 Bean 静默注入，开发者无需感知)
+├── Nacos 注册/配置      (spring-cloud-starter-alibaba-nacos-*)
+├── Actuator + Prometheus (始终暴露 /actuator/prometheus)
+└── 全局异常处理          (GlobalExceptionHandler + ApiResponse)
+```
+
+### 1.6.3 非必要组件实现规范
+
+非必要组件必须满足 **"引了就说明需要，没引就是不需要"** 原则——服务不引入该依赖时，启动日志零报错零警告，连一行配置都不需要写。
+
+**实现三步：**
+
+**① 框架 POM 中标记 `optional`：**
+```xml
+<!-- expense-framework/pom.xml -->
+<dependency>
+    <groupId>com.baomidou</groupId>
+    <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
+    <optional>true</optional>   <!-- ← 关键：服务不声明就不会引入 -->
+</dependency>
+```
+
+**② 独立属性文件（非 `framework-defaults.properties`）：**
+```
+framework-mybatis-defaults.properties   ← MyBatis 专用
+framework-redis-defaults.properties     ← Redis 专用
+```
+每个非必要组件一个独立 properties 文件，**绝不**放入全局 `framework-defaults.properties`。
+
+**③ Auto-configuration 类加 `@ConditionalOnClass` + `@PropertySource`：**
+```java
+// ✅ 正确：仅在 MyBatis-Plus 在 classpath 时才激活
+@Configuration
+@ConditionalOnClass(MybatisPlusAutoConfiguration.class)
+@AutoConfigureBefore(MybatisPlusAutoConfiguration.class)
+@PropertySource("classpath:framework-mybatis-defaults.properties")
+public class FrameworkMyBatisAutoConfiguration {
+}
+```
+
+```
+当前非必要组件：
+├── MyBatis-Plus   ← @ConditionalOnClass(MybatisPlusAutoConfiguration)
+│                    属性文件: framework-mybatis-defaults.properties
+├── MySQL DataSource ← @ConditionalOnClass(HikariDataSource)
+│                     从环境变量 DB_HOST/DB_PORT/EXPENSE_DB_USERNAME/EXPENSE_DB_PASSWORD
+├── Flyway          ← 无框架配置（Spring Boot 自带的 FlywayAutoConfiguration 处理）
+│                    服务 POM 声明 flyway-core 即自动启用
+└── Redis           ← @ConditionalOnClass(RedisTemplate)
+                     属性文件: framework-redis-defaults.properties
+```
+
+### 1.6.4 反模式与正确做法对照
+
+| 场景 | ❌ 反模式 | ✅ 正确 |
+|------|---------|--------|
+| **全局属性文件** | 把 MyBatis/Flyway/Redis 默认值放进 `framework-defaults.properties` | 非必要组件独立 properties 文件，`@ConditionalOnClass` 隔离加载 |
+| **手动开关** | 服务写 `spring.flyway.enabled: false` 来关闭不需要的组件 | 服务不引入 flyway 依赖，压根不加载 |
+| **无差别依赖** | 框架 POM 中所有依赖无 `optional` 标记 | 非必要组件标记 `<optional>true</optional>` |
+| **全局 API 模块** | 建一个 `expense-api/` 放所有 Feign 接口 | 每个服务独立 `-api` 模块（见 §1.5） |
+| **缺少条件注解** | 非必要 AutoConfiguration 不加 `@ConditionalOnClass` | 必加，确保 classpath 无依赖时不报错 |
+
+### 1.6.5 新增组件 checklist
+
+向 `expense-framework` 添加新组件时，逐项确认：
+
+```
+☐ 1. 判定分类：遍历全部微服务，确认是必要还是非必要
+☐ 2. [必要] 依赖不放 optional / [非必要] 依赖标记 <optional>true</optional>
+☐ 3. [必要] 默认值放入 framework-defaults.properties
+     [非必要] 新建独立 framework-{name}-defaults.properties
+☐ 4. 创建 Framework{Name}AutoConfiguration 类
+☐ 5. [非必要] 加 @ConditionalOnClass({核心类}.class)
+☐ 6. [非必要] 加 @PropertySource("classpath:framework-{name}-defaults.properties")
+☐ 7. 在 FrameworkAutoConfiguration 的 @Import 中注册
+☐ 8. 更新本文档 §1.6 的组件清单
+☐ 9. 编译验证：无此依赖的服务启动零报错
+```
+
+### 1.6.6 属性文件一览
+
+```
+expense-framework/src/main/resources/
+├── framework-defaults.properties          ← 必要组件（仅 Actuator）
+├── framework-mybatis-defaults.properties  ← 非必要（@ConditionalOnClass 隔离加载）
+└── framework-redis-defaults.properties    ← 非必要（@ConditionalOnClass 隔离加载）
+```
+
+### 1.6.7 Auto-configuration 类清单
+
+| 类 | 条件 | 分类 | 职责 |
+|----|------|------|------|
+| `FrameworkAutoConfiguration` | 始终 | 入口 | `@ComponentScan` + `@PropertySource` 全局属性 + `@Import` 全部子配置 |
+| `FrameworkSecurityAutoConfiguration` | 始终 | 必要 | `SecurityFilterChain` + `XUserFilter` |
+| `FrameworkWebAutoConfiguration` | 始终 | 必要 | `GlobalExceptionHandler` |
+| `FrameworkFeignAutoConfiguration` | 始终 | 必要 | `UserContextFeignInterceptor` |
+| `FrameworkMyBatisAutoConfiguration` | `@ConditionalOnClass` | 非必要 | MyBatis-Plus 默认值 |
+| `FrameworkDataSourceAutoConfiguration` | `@ConditionalOnClass` | 非必要 | MySQL DataSource（环境变量） |
+| `FrameworkRedisAutoConfiguration` | `@ConditionalOnClass` | 非必要 | Redis 连接（环境变量） |
+
+### 1.6.8 服务 POM 与 application.yml 规范
+
+**服务 POM — 一个框架依赖搞定的写法：**
+```xml
+<!-- ✅ 必要组件：expense-framework 一个依赖全部覆盖 -->
+<dependency>
+    <groupId>com.example</groupId>
+    <artifactId>expense-framework</artifactId>
+</dependency>
+
+<!-- ✅ 非必要组件：服务显式声明需要的 -->
+<dependency>
+    <groupId>com.baomidou</groupId>
+    <artifactId>mybatis-plus-spring-boot3-starter</artifactId>  <!-- 需要 DB -->
+</dependency>
+<dependency>
+    <groupId>com.mysql</groupId>
+    <artifactId>mysql-connector-j</artifactId>                <!-- 需要 DB -->
+</dependency>
+
+<!-- ✅ 服务特有依赖 -->
+<dependency>
+    <groupId>com.alibaba</groupId>
+    <artifactId>easyexcel</artifactId>                        <!-- 仅 statistics + bill -->
+</dependency>
+```
+
+**服务 application.yml — 最小化写法：**
+```yaml
+# ✅ 仅保留服务特有配置，框架已覆盖通用部分
+server:
+  port: 8082
+spring:
+  application:
+    name: category-service
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:dev}
+        group: expense-cloud
+# 不需要写：datasource / flyway / mybatis-plus / management — 框架 + opt-in 已覆盖
+```
+
+### 1.6.9 Jackson ObjectMapper 规范
+
+> **优先级：高**。禁止手动 `new ObjectMapper()`，统一注入 Spring Boot 管理的实例。
+
+Spring Boot 的 `JacksonAutoConfiguration` 已自动配置好：
+- `JavaTimeModule` — `LocalDateTime`、`LocalDate` 序列化
+- `spring.jackson.date-format` / `spring.jackson.time-zone` 配置绑定
+- classpath 上的 `Module` Bean 自动发现
+
+**反模式（禁止）：**
+
+```java
+// ❌ 覆盖了 Spring Boot 的完整配置，丢失 JavaTimeModule 等
+@Bean
+public ObjectMapper objectMapper() { return new ObjectMapper(); }
+
+// ❌ 每次 new 浪费内存，不受全局配置管控
+private final ObjectMapper objectMapper = new ObjectMapper();
+```
+
+**正确做法：直接注入，按需用 Customizer 定制**
+
+```java
+// ✅ 注入 Spring Boot 已配置好的 ObjectMapper
+@Service
+@RequiredArgsConstructor
+public class AiCategoryService {
+    private final ObjectMapper objectMapper;
+}
+
+// ✅ 如需定制，用 Customizer 而非覆盖整个 Bean
+@Bean
+public Jackson2ObjectMapperBuilderCustomizer jacksonCustomizer() {
+    return builder -> builder
+        .timeZone(TimeZone.getTimeZone("Asia/Shanghai"));
+}
+```
+
+**`Jackson2ObjectMapperBuilderCustomizer` 工作流：**
+
+```
+JacksonAutoConfiguration → 创建 Builder → 收集 Customizer Bean
+  → 逐个 customize() → build() → 最终 ObjectMapper
+  → @Autowired 拿到的就是这个完整配置版
+```
+
+声明 Customizer 后无需额外操作，所有 `ObjectMapper` 注入点自动生效。
+
 ---
 
 # 二、编码规范

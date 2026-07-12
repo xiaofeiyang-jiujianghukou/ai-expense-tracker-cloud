@@ -1,0 +1,64 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: expense-gateway
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: expense-cloud
+      config:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: expense-cloud
+        file-extension: yaml
+        import-check:
+          enabled: false
+        shared-configs:
+          - data-id: gateway-routes.yaml
+            group: expense-cloud
+            refresh: true
+
+    gateway:
+      # CORS — NOT configured here. Production uses reverse proxy (Nginx/K8s Ingress)
+      # Routes — loaded dynamically from Nacos config (gateway-routes.yaml)
+
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
+        port: 8725
+      # Eager initialization
+      eager: true
+      datasource:
+        gw-flow:
+          nacos:
+            server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+            namespace: ${NACOS_NAMESPACE:}
+            data-id: sentinel-gateway-flow-rules
+            group: SENTINEL_GROUP
+            rule-type: gw_flow
+
+# JWT secret — same key as expense-server, used for token validation at gateway
+jwt:
+  secret: ${JWT_SECRET:YWktZXhwZW5zZS10cmFja2VyLWp3dC1kZWM2MjMyZC0wNjczLTRkYTMtODNlZS1lODgzN2NiNTJkY2Q=}
+
+# Actuator / Prometheus
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,gateway
+      base-path: /actuator
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+  endpoint:
+    prometheus:
+      enabled: true

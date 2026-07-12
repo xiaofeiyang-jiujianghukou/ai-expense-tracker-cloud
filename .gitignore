@@ -1,0 +1,24 @@
+# Build output
+**/target/
+*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Playwright screenshots & logs
+.playwright-mcp/
+*.png
+
+# Arthas (fat JAR, downloaded separately)
+arthas/*.jar
+
+# Docker volumes
+mysql-data/
+redis-data/
+nacos-data/
+
+# OS
+.DS_Store
+Thumbs.db

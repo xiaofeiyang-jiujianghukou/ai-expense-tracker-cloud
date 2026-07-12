@@ -390,3 +390,71 @@
 | Sprint 15 | 数据导出（CSV/Excel/PDF） | ✅ |
 | Sprint 16 | 文档收尾 | ✅ |
 | **总计** | **V3.0 全部完成** | ✅ |
+| Sprint 17 | Docker 容器化 + 基础设施（expense-api/gateway/XUserFilter） | 🟡 进行中 |
+| Sprint 18 | Spring Cloud 微服务拆分（Nacos/Feign/Sentinel） | ❌ |
+| Sprint 19 | 监控 + 收尾（Prometheus/Grafana） | ❌ |
+| Sprint 20 | CI/CD（GitHub Actions） | ❌ |
+| Sprint 21 | 云部署 | ❌ |
+| Sprint 22 | 文档收尾 | ❌ |
+| **V4.0 总计** | **微服务工程化改造** | 🟡 |
+
+---
+
+## Sprint 17：Docker 容器化 + V4.0 基础设施
+
+**状态**: 🟡 进行中
+
+**目标**: 修复 POM 不一致、创建 expense-api 和 expense-gateway 模块、XUserFilter 上下文传递、各服务独立化、Docker 化
+
+| 任务 | 描述 | 状态 |
+|------|------|------|
+| T1701 | 修复父 POM artifactId/version 不一致（expense→expense-cloud, 1.0.0→4.0.0） | ✅ |
+| T1702 | 创建 expense-api 模块（Feign 接口 + DTO + RequestInterceptor） | ✅ |
+| T1703 | 创建 expense-gateway 模块（Spring Cloud Gateway + JWT 校验 + 路由） | ✅ |
+| T1704 | expense-common 新增 XUserFilter（X-User-Id → SecurityContextHolder） | ✅ |
+| T1705 | 各服务模块添加启动类 + application.yml + 更新 POM | ✅ |
+| T1706 | 编写 docker-compose.yml（11 个容器） | ✅ |
+| T1707 | 编写各服务多阶段 Dockerfile（6 个） | ✅ |
+| T1708 | 编写 Prometheus + Grafana 配置 | ✅ |
+| T1709 | 验证 Maven 编译通过 | ✅ |
+| T1710 | 文档同步（architecture/development-plan/iteration-log/CLAUDE.md） | 🟡 |
+
+**产出物**:
+- 5 个可独立启动的服务模块 + 1 个 Gateway
+- docker-compose.yml 编排 (11 容器: 5 infra + 6 app + 2 monitor)
+- 上下文传递链路: Gateway JWT → X-User-Id → XUserFilter → SecurityUtil
+
+---
+
+## Sprint 18：微服务拆分（Spring Cloud）
+
+**状态**: ❌ 未开始
+
+**目标**: Nacos 注册/配置中心接入、Feign 替换跨模块直接调用、Sentinel 限流
+
+| 任务 | 描述 | 状态 |
+|------|------|------|
+| T1801 | 各服务接入 Nacos 注册中心（启动验证服务注册） | ❌ |
+| T1802 | 各服务接入 Nacos 配置中心（迁移 DB/Redis/JWT/LLM 配置） | ❌ |
+| T1803 | Feign 替换：user-service → category-service | ❌ |
+| T1804 | Feign 替换：bill-service → category-service | ❌ |
+| T1805 | Feign 替换：statistics-service → bill-service + category-service | ❌ |
+| T1806 | Feign 替换：ai-service → statistics-service | ❌ |
+| T1807 | Sentinel 限流规则配置 + Dashboard 集成 | ❌ |
+| T1808 | docker-compose 全链路联调 | ❌ |
+
+---
+
+## Sprint 19：监控 + 收尾
+
+**状态**: ❌ 未开始
+
+**目标**: Prometheus + Grafana 部署、仪表盘、全流程验证
+
+| 任务 | 描述 | 状态 |
+|------|------|------|
+| T1901 | Prometheus 部署 + 采集验证 | ❌ |
+| T1902 | Grafana 部署 + Dashboard 导入 | ❌ |
+| T1903 | 验证 CPU/内存/QPS/P99/GC 指标 | ❌ |
+| T1904 | 全链路浏览器验收（注册→登录→记账→AI→统计） | ❌ |
+| T1905 | 文档收尾 | ❌ |

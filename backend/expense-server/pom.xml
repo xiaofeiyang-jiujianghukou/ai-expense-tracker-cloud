@@ -5,9 +5,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.example</groupId>
-        <artifactId>expense</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <groupId>com.xiaofeiyang</groupId>
+        <artifactId>expense-cloud</artifactId>
+        <version>4.0.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>expense-server</artifactId>
@@ -16,35 +16,35 @@
     <dependencies>
         <!-- Internal modules -->
         <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>expense-common</artifactId>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-framework</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
+            <groupId>com.xiaofeiyang</groupId>
             <artifactId>expense-security</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
+            <groupId>com.xiaofeiyang</groupId>
             <artifactId>expense-user</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>expense-category</artifactId>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-category-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>expense-bill</artifactId>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-bill-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
-            <artifactId>expense-statistics</artifactId>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-statistics-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
+            <groupId>com.xiaofeiyang</groupId>
             <artifactId>expense-ai</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.example</groupId>
+            <groupId>com.xiaofeiyang</groupId>
             <artifactId>expense-budget</artifactId>
         </dependency>
 

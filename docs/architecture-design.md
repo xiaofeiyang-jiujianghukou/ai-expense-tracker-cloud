@@ -509,3 +509,117 @@ Nginx (:80) ──▶ /api/* → Spring Boot (:8080)
 | AD-11 | 去掉 interface + impl | Service 和 Manager 默认为具体类，只有一个实现时无需接口；需要多态时再提取接口 | 2026-07-11 |
 | AD-12 | DeepSeek API | V2.0 LLM 选用 DeepSeek（deepseek-v4-pro），OpenAI 兼容 API，RestTemplate 直调 | 2026-07-11 |
 | AD-13 | AI 模块只读不写 | expense-ai 不建新表、不写数据，纯计算/分析层，LLM 结果实时返回不持久化 | 2026-07-11 |
+| AD-14 | Spring Cloud 微服务 | Spring Cloud 2024.0.0 + Alibaba 2023.0.1.2，拆分为 5 个独立服务 | 2026-07-12 |
+| AD-15 | Nacos 注册+配置中心 | 服务发现 + 配置管理，dev/test/prod 三 namespace 隔离 | 2026-07-12 |
+| AD-16 | Gateway 统一鉴权 | Gateway 解析 JWT 注入 X-User-Id header，下游服务信任 header，移除原有 JwtAuthFilter | 2026-07-12 |
+| AD-17 | XUserFilter 上下文传递 | 读 X-User-Id header → 设 SecurityContextHolder，现有 SecurityUtil 代码零改动 | 2026-07-12 |
+| AD-18 | Sentinel 限流 | Gateway 全局 QPS + 服务级热点保护，规则持久化到 Nacos | 2026-07-12 |
+| AD-19 | Prometheus + Grafana 监控 | Actuator/Micrometer 暴露指标，Prometheus 采集，Grafana 展示 CPU/内存/QPS/P99 | 2026-07-12 |
+| AD-20 | Phase 1 共享数据库 | V4.0 Phase 1 所有服务共用同一 MySQL，Flyway 按表归属分散到各服务；Phase 2 拆库 | 2026-07-12 |
+| AD-21 | expense-budget 合并入 bill-service | 预算仅 1 表 + 简单 CRUD，独立部署成本高收益低，并入 bill-service | 2026-07-12 |
+
+---
+
+## 10. V4.0 微服务架构
+
+### 10.1 服务拓扑
+
+```
+                    Spring Cloud Gateway (:8080)  ← 统一入口
+                          │
+      ┌─────────┬─────────┼─────────┬──────────┐
+      ▼         ▼         ▼         ▼          ▼
+ user-svc  category  bill-svc  statistics   ai-svc
+ (:8081)   -svc     (:8083)  -svc         (:8085)
+           (:8082)           (:8084)
+```
+
+### 10.2 服务清单
+
+| 服务 | 来源模块 | 端口 | 数据库表 | 依赖服务 |
+|------|---------|------|---------|---------|
+| **gateway** | expense-gateway（新建） | 8080 | — | Nacos |
+| **user-service** | expense-user | 8081 | `user` | category-service（Feign） |
+| **category-service** | expense-category | 8082 | `category` | —（叶子服务） |
+| **bill-service** | expense-bill + expense-budget | 8083 | `bill`, `budget` | category-service（Feign） |
+| **statistics-service** | expense-statistics | 8084 | —（聚合查询） | bill-service, category-service |
+| **ai-service** | expense-ai | 8085 | —（纯计算） | statistics-service |
+
+### 10.3 模块拆分模型（三模块）
+
+每个对外提供 Feign API 的服务按 **-api / -common / -application** 拆为三个独立 Maven 模块：
+
+```
+expense-category-api/           ← 轻量 JAR（Feign 接口 + DTO），对外发布
+expense-category-application/   ← Spring Boot 应用（只部署不发布）
+(expense-category-common/)      ← 可选：服务内部共享 Entity/Utils
+```
+
+**当前项目拆分清单：**
+
+| 服务 | API 模块 | 应用模块 | 说明 |
+|------|---------|---------|------|
+| category | `expense-category-api` | `expense-category-application` | CategoryClient + CategoryDTO |
+| bill | `expense-bill-api` | `expense-bill-application` | BillClient + BillDTO |
+| statistics | `expense-statistics-api` | `expense-statistics-application` | StatisticsClient + 3 DTOs |
+| user | — | `expense-user`（单模块） | 无 Feign 消费者，暂不拆 |
+| ai | — | `expense-ai`（单模块） | 无 Feign 消费者，暂不拆 |
+
+**共享模块：**
+
+| 模块 | 类型 | 说明 |
+|------|------|------|
+| **expense-common** | 共享 JAR | ApiResponse、SecurityUtil、XUserFilter、UserContextFeignInterceptor |
+| **expense-security** | 共享 JAR（精简） | JwtTokenProvider |
+
+### 10.4 上下文传播
+
+```
+Client → Gateway                          → 下游服务
+         [JwtValidationGlobalFilter]          [XUserFilter]
+         1. 提取 Authorization header         1. 读 X-User-Id header
+         2. 验证 JWT 签名+过期                 2. 设 SecurityContextHolder
+         3. 注入 X-User-Id / X-User-Email      3. SecurityUtil.getCurrentUserId()
+         4. 移除 Authorization header             → 现有代码零改动
+         5. 转发请求
+```
+
+### 10.5 Gateway 路由
+
+| 路由 | 目标服务 | 特殊处理 |
+|------|---------|---------|
+| `/api/users/**` | user-service | — |
+| `/api/categories/**` | category-service | — |
+| `/api/bills/**` | bill-service | — |
+| `/api/statistics/**` | statistics-service | — |
+| `/api/ai/analysis/stream`, `/api/ai/report/stream` | ai-service | SSE 非缓冲透传，120s 超时 |
+| `/api/ai/**` | ai-service | — |
+
+- CORS：Gateway 统一配置
+- 限流：Sentinel 在 Gateway 层 QPS 控制
+
+### 10.6 监控架构
+
+```
+各服务 /actuator/prometheus → Prometheus 采集 → Grafana 展示
+    ├── JVM: 堆内存、GC 暂停、线程数
+    ├── HTTP: QPS、P99 延迟、错误率
+    ├── DB: HikariCP 连接数
+    └── CPU: process_cpu_usage
+```
+
+### 10.7 部署架构（docker-compose）
+
+```
+基础设施：MySQL:8.0, Redis:7, Nacos:2.3.2, Sentinel Dashboard:1.8.8
+监控：    Prometheus:3.3, Grafana:11.6
+应用：    Gateway, user-service, category-service, bill-service, statistics-service, ai-service
+```
+
+### 10.8 实施阶段
+
+| Sprint | 阶段 | 内容 |
+|--------|------|------|
+| S17 | Docker + 基础设施 | 父 POM 修复、expense-api/gateway 模块、XUserFilter、各服务独立化、docker-compose |
+| S18 | Spring Cloud 拆分 | Nacos 注册/配置中心、Feign 替换直接调用、Sentinel 限流规则 |
+| S19 | 监控 + 收尾 | Prometheus+Grafana 部署、仪表盘、全链路联调、文档同步 |

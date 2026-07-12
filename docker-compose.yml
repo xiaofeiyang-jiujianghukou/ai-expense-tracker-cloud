@@ -1,0 +1,364 @@
+# ============================================================
+# AI Expense Tracker Cloud — V4.0 Microservices
+# ============================================================
+# Usage:
+#   docker-compose up -d              # Start all services
+#   docker-compose up -d <service>    # Start a specific service
+#   docker-compose down               # Stop all services
+#   docker-compose logs -f <service>  # Tail logs for a service
+#
+# Resource limits: all containers capped to dev-minimum levels.
+# Total estimated memory: ~3-4 GB (was ~10+ GB without limits).
+# ============================================================
+
+services:
+  # ==================== Reverse Proxy (entry point) ====================
+
+  nginx:
+    image: crpi-27zlqugq2208c0pz.cn-hangzhou.personal.cr.aliyuncs.com/xiaofeiyang930112/nginx:alpine
+    container_name: expense-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - gateway
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+  # ==================== Frontend ====================
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: expense-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend/src:/app/src:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+  # ==================== Infrastructure ====================
+
+  mysql:
+    image: crpi-27zlqugq2208c0pz.cn-hangzhou.personal.cr.aliyuncs.com/xiaofeiyang930112/mysql:8.0
+    container_name: expense-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-xfylovesxy}
+      MYSQL_DATABASE: ai_expense_tracker
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    networks:
+      - expense-net
+
+  redis:
+    image: crpi-27zlqugq2208c0pz.cn-hangzhou.personal.cr.aliyuncs.com/xiaofeiyang930112/redis:7-alpine
+    container_name: expense-redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-xfylovesxy} --maxmemory 100mb --maxmemory-policy allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-xfylovesxy}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+  nacos:
+    image: crpi-27zlqugq2208c0pz.cn-hangzhou.personal.cr.aliyuncs.com/xiaofeiyang930112/nacos-server:v2.3.2
+    container_name: expense-nacos
+    environment:
+      MODE: standalone
+      PREFER_HOST_MODE: hostname
+      JVM_XMS: 128m
+      JVM_XMX: 384m
+      JVM_XMN: 64m
+      NACOS_AUTH_ENABLE: "true"
+      NACOS_AUTH_TOKEN_EXPIRE_SECONDS: 18000
+      NACOS_AUTH_TOKEN: 9o1yYGHswRaVsmG681hZ8OPzoD8gjZvmFigolntfWfk=
+      NACOS_AUTH_IDENTITY_KEY: nacos
+      NACOS_AUTH_IDENTITY_VALUE: nacos
+    ports:
+      - "8848:8848"
+      - "9848:9848"    # gRPC
+    volumes:
+      - nacos-data:/home/nacos/data
+      - ./nacos-init.sh:/home/nacos/init.sh:ro
+    entrypoint:
+      - sh
+      - -c
+      - "nohup /home/nacos/init.sh & exec bin/docker-startup.sh"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    networks:
+      - expense-net
+
+  # ==================== Application Services ====================
+
+  gateway:
+    build:
+      context: ./backend
+      dockerfile: expense-gateway/Dockerfile
+    container_name: expense-gateway
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    environment:
+      NACOS_SERVER: nacos:8848
+      NACOS_NAMESPACE:
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_USERNAME: nacos
+      SPRING_CLOUD_NACOS_PASSWORD: "xfylovesxy"
+      JWT_SECRET: YWktZXhwZW5zZS10cmFja2VyLWp3dC1kZWM2MjMyZC0wNjczLTRkYTMtODNlZS1lODgzN2NiNTJkY2Q=
+    depends_on:
+      nacos:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+  user-service:
+    build:
+      context: ./backend
+      dockerfile: expense-user/Dockerfile
+    container_name: expense-user
+    ports:
+      - "8081:8081"
+    environment:
+      NACOS_SERVER: nacos:8848
+      NACOS_NAMESPACE:
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_USERNAME: nacos
+      SPRING_CLOUD_NACOS_PASSWORD: "xfylovesxy"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      EXPENSE_DB_USERNAME: root
+      EXPENSE_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-xfylovesxy}
+      JWT_SECRET: YWktZXhwZW5zZS10cmFja2VyLWp3dC1kZWM2MjMyZC0wNjczLTRkYTMtODNlZS1lODgzN2NiNTJkY2Q=
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+  category-service:
+    build:
+      context: ./backend
+      dockerfile: expense-category-application/Dockerfile
+    container_name: expense-category
+    ports:
+      - "8082:8082"
+    environment:
+      NACOS_SERVER: nacos:8848
+      NACOS_NAMESPACE:
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_USERNAME: nacos
+      SPRING_CLOUD_NACOS_PASSWORD: "xfylovesxy"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      EXPENSE_DB_USERNAME: root
+      EXPENSE_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-xfylovesxy}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+  bill-service:
+    build:
+      context: ./backend
+      dockerfile: expense-bill-application/Dockerfile
+    container_name: expense-bill
+    ports:
+      - "8083:8083"
+    environment:
+      NACOS_SERVER: nacos:8848
+      NACOS_NAMESPACE:
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_USERNAME: nacos
+      SPRING_CLOUD_NACOS_PASSWORD: "xfylovesxy"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      EXPENSE_DB_USERNAME: root
+      EXPENSE_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-xfylovesxy}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+  budget-service:
+    build:
+      context: ./backend
+      dockerfile: expense-budget/Dockerfile
+    container_name: expense-budget
+    ports:
+      - "8086:8086"
+    environment:
+      NACOS_SERVER: nacos:8848
+      NACOS_NAMESPACE:
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_USERNAME: nacos
+      SPRING_CLOUD_NACOS_PASSWORD: "xfylovesxy"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      EXPENSE_DB_USERNAME: root
+      EXPENSE_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-xfylovesxy}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+  statistics-service:
+    build:
+      context: ./backend
+      dockerfile: expense-statistics-application/Dockerfile
+    container_name: expense-statistics
+    ports:
+      - "8084:8084"
+    environment:
+      NACOS_SERVER: nacos:8848
+      NACOS_NAMESPACE:
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_USERNAME: nacos
+      SPRING_CLOUD_NACOS_PASSWORD: "xfylovesxy"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      EXPENSE_DB_USERNAME: root
+      EXPENSE_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-xfylovesxy}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+  ai-service:
+    build:
+      context: ./backend
+      dockerfile: expense-ai/Dockerfile
+    container_name: expense-ai
+    ports:
+      - "8085:8085"
+    environment:
+      NACOS_SERVER: nacos:8848
+      NACOS_NAMESPACE:
+      SPRING_CLOUD_NACOS_DISCOVERY_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_CONFIG_SERVER_ADDR: nacos:8848
+      SPRING_CLOUD_NACOS_USERNAME: nacos
+      SPRING_CLOUD_NACOS_PASSWORD: "xfylovesxy"
+      DB_HOST: mysql
+      DB_PORT: 3306
+      EXPENSE_DB_USERNAME: root
+      EXPENSE_DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-xfylovesxy}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-xfylovesxy}
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-v4-pro}
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    networks:
+      - expense-net
+
+volumes:
+  mysql-data:
+  redis-data:
+  nacos-data:
+
+networks:
+  expense-net:
+    driver: bridge

@@ -7,6 +7,35 @@
 
 ## 迭代记录
 
+### #015 — 2026-07-12 | V4.0 微服务架构设计 + Sprint 17 基础设施搭建
+
+**类型**: 架构设计 + 实现
+
+**内容**:
+- V4.0 微服务架构设计评审通过：5 个微服务 + Gateway + 2 个共享 JAR（expense-common / expense-api）
+- 关键技术选型：Spring Cloud 2024.0.0 + Alibaba 2023.0.1.2、Nacos 2.3.2、Sentinel 1.8.8、Prometheus + Grafana
+- 认证方案：网关统一 JWT 鉴权（Gateway 解析 JWT → 注入 X-User-Id → 下游信任 header）
+- 上下文传播：XUserFilter（expense-common）读 header → 设 SecurityContextHolder → 现有代码零改动
+- 修复父 POM artifactId/version 不一致（expense→expense-cloud, 1.0.0→4.0.0）— 9 个子模块
+- 新建 expense-api 模块：3 个 Feign 接口（CategoryClient/BillClient/StatisticsClient）+ 5 个共享 DTO + UserContextFeignInterceptor
+- 新建 expense-gateway 模块：Spring Cloud Gateway + JwtValidationGlobalFilter + 路由配置 + CORS + Sentinel
+- expense-common 新增 XUserFilter（@Component, OncePerRequestFilter）
+- 5 个服务模块独立化：各添加 XxxApplication.java + application.yml + 更新 POM
+- 各服务分配 Flyway 迁移脚本（user→V1, category→V2, bill→V3~V6）
+- docker-compose.yml：11 个容器（MySQL/Redis/Nacos/Sentinel/Prometheus/Grafana/Gateway/5 services）
+- 6 个多阶段 Dockerfile（eclipse-temurin:21-jdk-alpine → jre-alpine）
+- Prometheus 采集配置 + Grafana 仪表盘 JSON（9 个面板：健康/QPS/P99/错误率/CPU/内存/DB连接/GC/线程）
+- Phase 1 策略：共享 DB + 保留跨模块依赖（Feign 迁移在 Sprint 18）
+- expense-budget 合并入 bill-service，expense-server 标记为待移除
+
+**文档版本**:
+- architecture-design.md: 新增 §10 V4.0 微服务架构 + AD-14~AD-21
+- development-plan.md: 新增 Sprint 17-19
+- CLAUDE.md: 同步更新 V4.0
+- iteration-log.md: 追加 #015
+
+---
+
 ### #011 — 2026-07-11 | V2.0 浏览器验收准备 + MCP 配置 + API 测试规范
 
 **类型**: 规范 + 工具
