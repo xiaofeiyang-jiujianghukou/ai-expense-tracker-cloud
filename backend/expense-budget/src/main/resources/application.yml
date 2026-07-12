@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: budget-service
+    name: expense-budget
   cloud:
     nacos:
       discovery:

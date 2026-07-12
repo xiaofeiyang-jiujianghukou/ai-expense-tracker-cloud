@@ -1,0 +1,12 @@
+# Base builder — only expense-framework
+FROM crpi-27zlqugq2208c0pz.cn-hangzhou.personal.cr.aliyuncs.com/xiaofeiyang930112/maven:3.9-eclipse-temurin-21-alpine AS builder
+WORKDIR /build
+
+# Only framework — mvn -f points directly to its POM, no reactor needed
+COPY pom.xml docker-settings.xml ./
+COPY expense-framework/pom.xml ./expense-framework/
+
+COPY expense-framework/src ./expense-framework/src/
+# Install parent POM first, then framework (child POMs need parent)
+RUN mvn install -f pom.xml -N -B -q
+RUN mvn install -f expense-framework/pom.xml -B -q -DskipTests

@@ -21,23 +21,22 @@
     <modules>
         <!-- Shared -->
         <module>expense-framework</module>
-        <module>expense-security</module>
-        <!-- Service APIs (lightweight Feign clients, published) -->
-        <module>expense-category-api</module>
-        <module>expense-bill-api</module>
-        <module>expense-statistics-api</module>
-        <!-- Service Common (shared VOs, published — standard JAR, no fat JAR) -->
-        <module>expense-category-common</module>
-        <module>expense-bill-common</module>
-        <module>expense-statistics-common</module>
+        <!-- expense-category -->
+        <module>expense-category/expense-category-api</module>
+        <module>expense-category/expense-category-common</module>
+        <module>expense-category/expense-category-application</module>
+        <!-- expense-bill -->
+        <module>expense-bill/expense-bill-api</module>
+        <module>expense-bill/expense-bill-common</module>
+        <module>expense-bill/expense-bill-application</module>
+        <!-- expense-statistics -->
+        <module>expense-statistics/expense-statistics-api</module>
+        <module>expense-statistics/expense-statistics-common</module>
+        <module>expense-statistics/expense-statistics-application</module>
         <!-- Service applications (runtime, NOT published as dependency) -->
         <module>expense-user</module>
-        <module>expense-category-application</module>
-        <module>expense-bill-application</module>
-        <module>expense-statistics-application</module>
         <module>expense-ai</module>
         <module>expense-budget</module>
-        <module>expense-server</module>
         <module>expense-gateway</module>
     </modules>
 
@@ -205,11 +204,6 @@
             <dependency>
                 <groupId>com.xiaofeiyang</groupId>
                 <artifactId>expense-framework</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.xiaofeiyang</groupId>
-                <artifactId>expense-security</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <!-- Internal Modules — Applications (full runtime, not published) -->

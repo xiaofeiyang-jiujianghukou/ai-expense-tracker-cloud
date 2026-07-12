@@ -34,6 +34,54 @@
 - CLAUDE.md: 同步更新 V4.0
 - iteration-log.md: 追加 #015
 
+### #016 — 2026-07-12 | V4.0 设计稿补写
+
+**类型**: 文档
+
+**内容**:
+- 补写 `docs/design/v4-design-doc.md`（V4.0 微服务工程化改造设计稿）
+- 涵盖：12 容器架构拓扑、三模块拆分模式、认证架构重构、Gateway 动态路由、资源管控、可观测性、全部技术决策、部署架构、踩坑精选
+- CLAUDE.md §3 关键文档索引新增 V4 设计稿
+- architecture-design.md §10 新增 V4 设计稿引用
+
+**文档版本**:
+- v4-design-doc.md: 新建
+- CLAUDE.md: §3 索引新增
+- architecture-design.md: §10 新增引用
+
+### #017 — 2026-07-13 | 全接口浏览器验收 + 7 项 BUG 修复 + 目录重构
+
+**类型**: 验收 + 修复 + 重构
+
+**验收结果**（7 模块 6 页面全部通过）:
+- 用户 / 分类 / 账单 / 预算 / 统计 / AI → API 验收 100% 通过
+- 仪表盘 / 账单管理 / 分类管理 / 月度统计 / 趋势分析 / 预算管理 → 浏览器验收通过
+- AI 消费洞察 SSE 流式输出正常工作（餐饮占比 63%、交通 37%、结余率 99%）
+
+**BUG 修复**:
+1. AI SSE 500 — `AiController` SSE 方法中 `ttlExecutor` 后台线程丢失 `SecurityContext` + `RequestContextHolder`，导致 Feign 调用无法传播 `X-User-Id`
+2. 账单 Total 始终 0 — MyBatis-Plus 3.5.9 `PaginationInnerInterceptor` 移至 `mybatis-plus-jsqlparser`，新增 `MyBatisPlusConfig` 到 `expense-framework`
+3. CSV 导出收入显示为支出 — `BillService.exportCsv()` 比较 `"收入"` vs 实际值 `"INCOME"`
+4. 日期选择器不支持键盘输入 — Element Plus `<el-date-picker>` 缺少 `editable` 属性
+5. 删除取消 Unhandled error — `ElMessageBox.confirm` reject 未 `try/catch`
+6. nacos-init.sh token 失效 — 改密码后重新获取 token 再上传路由
+7. 导出文件 UUID 文件名/打不开 — 后端 `Content-Disposition: attachment` 与前端 blob 下载冲突
+
+**目录重构**:
+- `expense-category/expense-bill/expense-statistics` 三服务的 `-api/-common/-application` 子模块收入各自父目录
+- `docker-compose.yml` 服务名统一为 `expense-*`（对齐 Nacos 注册名）
+- 7 个 Dockerfile + 父 POM + 全部 `pom.xml relativePath` 同步更新
+
+**新增组件**:
+- `ApiResponseDecoder` — Feign 通用解码器，自动解包 `ApiResponse.data`，兼容裸数据响应
+- `gateway-routes.yaml` — Gateway 路由配置文件，Nacos 重建时自动初始化
+
+**文档版本**:
+- CLAUDE.md: §4 目录结构更新, §5.7 构建规范新增, §5.8-§5.13 重编号
+- architecture-design.md: **完全重写** — 以 V4.0 微服务为主线，移除 V1~V3 单体旧内容
+- development-plan.md: Sprint 17-19 标记完成，Sprint 20 调整为 Starter 拆分
+- iteration-log.md: 追加 #017
+
 ---
 
 ### #011 — 2026-07-11 | V2.0 浏览器验收准备 + MCP 配置 + API 测试规范

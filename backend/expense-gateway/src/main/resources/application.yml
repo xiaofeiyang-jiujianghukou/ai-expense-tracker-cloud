@@ -2,6 +2,8 @@ server:
   port: ${SERVER_PORT:8080}
 
 spring:
+  config:
+    import: nacos:expense-gateway.yaml?group=expense-cloud&refresh-enabled=true
   application:
     name: expense-gateway
 
@@ -18,14 +20,11 @@ spring:
         file-extension: yaml
         import-check:
           enabled: false
-        shared-configs:
-          - data-id: gateway-routes.yaml
-            group: expense-cloud
-            refresh: true
+        # Routes auto-loaded from Nacos: ${spring.application.name}.yaml = expense-gateway.yaml
 
     gateway:
       # CORS — NOT configured here. Production uses reverse proxy (Nginx/K8s Ingress)
-      # Routes — loaded dynamically from Nacos config (gateway-routes.yaml)
+      # Routes — loaded from Nacos config (expense-gateway.yaml)
 
     sentinel:
       transport:
@@ -51,7 +50,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus,metrics,gateway
+        include: health,info,prometheus,metrics,gateway,env
       base-path: /actuator
   metrics:
     tags:

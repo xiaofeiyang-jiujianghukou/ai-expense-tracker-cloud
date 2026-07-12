@@ -22,7 +22,7 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - gateway
+      - expense-gateway
     deploy:
       resources:
         limits:
@@ -116,6 +116,7 @@ services:
     volumes:
       - nacos-data:/home/nacos/data
       - ./nacos-init.sh:/home/nacos/init.sh:ro
+      - ./gateway-routes.yaml:/home/nacos/gateway-routes.yaml:ro
     entrypoint:
       - sh
       - -c
@@ -133,7 +134,7 @@ services:
 
   # ==================== Application Services ====================
 
-  gateway:
+  expense-gateway:
     build:
       context: ./backend
       dockerfile: expense-gateway/Dockerfile
@@ -159,7 +160,7 @@ services:
     networks:
       - expense-net
 
-  user-service:
+  expense-user:
     build:
       context: ./backend
       dockerfile: expense-user/Dockerfile
@@ -191,10 +192,10 @@ services:
     networks:
       - expense-net
 
-  category-service:
+  expense-category:
     build:
       context: ./backend
-      dockerfile: expense-category-application/Dockerfile
+      dockerfile: expense-category/expense-category-application/Dockerfile
     container_name: expense-category
     ports:
       - "8082:8082"
@@ -222,10 +223,10 @@ services:
     networks:
       - expense-net
 
-  bill-service:
+  expense-bill:
     build:
       context: ./backend
-      dockerfile: expense-bill-application/Dockerfile
+      dockerfile: expense-bill/expense-bill-application/Dockerfile
     container_name: expense-bill
     ports:
       - "8083:8083"
@@ -253,7 +254,7 @@ services:
     networks:
       - expense-net
 
-  budget-service:
+  expense-budget:
     build:
       context: ./backend
       dockerfile: expense-budget/Dockerfile
@@ -284,10 +285,10 @@ services:
     networks:
       - expense-net
 
-  statistics-service:
+  expense-statistics:
     build:
       context: ./backend
-      dockerfile: expense-statistics-application/Dockerfile
+      dockerfile: expense-statistics/expense-statistics-application/Dockerfile
     container_name: expense-statistics
     ports:
       - "8084:8084"
@@ -315,7 +316,7 @@ services:
     networks:
       - expense-net
 
-  ai-service:
+  expense-ai:
     build:
       context: ./backend
       dockerfile: expense-ai/Dockerfile

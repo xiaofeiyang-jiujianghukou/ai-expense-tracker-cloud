@@ -1,8 +1,0 @@
-spring:
-  datasource:
-    url: jdbc:tc:mysql:8.0:///expense_tracker_test
-    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
-    username: test
-    password: test
-  flyway:
-    enabled: false

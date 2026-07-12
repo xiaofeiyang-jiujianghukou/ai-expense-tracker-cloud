@@ -1,0 +1,35 @@
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: expense-user
+          uri: lb://expense-user
+          predicates:
+            - Path=/api/users/**
+        - id: expense-category
+          uri: lb://expense-category
+          predicates:
+            - Path=/api/categories/**
+        - id: expense-bill
+          uri: lb://expense-bill
+          predicates:
+            - Path=/api/bills/**
+        - id: expense-budget
+          uri: lb://expense-budget
+          predicates:
+            - Path=/api/budgets/**
+        - id: expense-statistics
+          uri: lb://expense-statistics
+          predicates:
+            - Path=/api/statistics/**
+        - id: expense-ai-sse
+          uri: lb://expense-ai
+          predicates:
+            - Path=/api/ai/analysis/stream,/api/ai/report/stream
+          metadata:
+            response-timeout: 120000
+            connect-timeout: 30000
+        - id: expense-ai
+          uri: lb://expense-ai
+          predicates:
+            - Path=/api/ai/**

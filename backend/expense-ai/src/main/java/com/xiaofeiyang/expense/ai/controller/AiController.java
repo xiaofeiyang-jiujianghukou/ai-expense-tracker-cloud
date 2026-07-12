@@ -15,7 +15,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import com.xiaofeiyang.expense.framework.util.SecurityUtil;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -58,8 +63,12 @@ public class AiController {
     @PostMapping(value = "/analysis/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter analysisStream(@Valid @RequestBody AnalysisRequest request) {
         Long userId = SecurityUtil.getCurrentUserId();
+        SecurityContext securityContext = SecurityContextHolder.getContext();
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
         SseEmitter emitter = new SseEmitter(120_000L);
         ttlExecutor.execute(() -> {
+            SecurityContextHolder.setContext(securityContext);
+            RequestContextHolder.setRequestAttributes(requestAttributes);
             try {
                 aiAnalysisService.generateAnalysisStream(
                         request.getYear(), request.getMonth(), userId,
@@ -74,6 +83,8 @@ public class AiController {
                 emitter.complete();
             } catch (Exception e) {
                 emitter.completeWithError(e);
+            } finally {
+                RequestContextHolder.resetRequestAttributes();
             }
         });
         return emitter;
@@ -82,8 +93,12 @@ public class AiController {
     @PostMapping(value = "/report/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter reportStream(@Valid @RequestBody AnalysisRequest request) {
         Long userId = SecurityUtil.getCurrentUserId();
+        SecurityContext securityContext = SecurityContextHolder.getContext();
+        RequestAttributes requestAttributes = RequestContextHolder.getRequestAttributes();
         SseEmitter emitter = new SseEmitter(120_000L);
         ttlExecutor.execute(() -> {
+            SecurityContextHolder.setContext(securityContext);
+            RequestContextHolder.setRequestAttributes(requestAttributes);
             try {
                 aiReportService.generateReportStream(
                         request.getYear(), request.getMonth(), userId, request.isForceRefresh(),
@@ -98,6 +113,8 @@ public class AiController {
                 emitter.complete();
             } catch (Exception e) {
                 emitter.completeWithError(e);
+            } finally {
+                RequestContextHolder.resetRequestAttributes();
             }
         });
         return emitter;

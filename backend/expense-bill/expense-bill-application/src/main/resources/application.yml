@@ -1,0 +1,18 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: expense-bill
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: expense-cloud
+      sentinel:
+        transport:
+          dashboard: ${SENTINEL_DASHBOARD:127.0.0.1:8858}
+          port: 8722
+        eager: true
+

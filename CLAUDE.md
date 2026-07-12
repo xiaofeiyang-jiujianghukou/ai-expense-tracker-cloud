@@ -69,13 +69,14 @@
 | 文档 | 路径 | 说明 |
 |------|------|------|
 | 项目需求 | [docs/project-requirements.md](docs/project-requirements.md) | 唯一需求真相来源（含前端需求） |
-| 架构设计 | [docs/architecture-design.md](docs/architecture-design.md) | 唯一架构真相来源（含前端架构+多模块设计） |
+| 架构设计 | [docs/architecture-design.md](docs/architecture-design.md) | 唯一架构真相来源（V4.0 微服务架构） |
 | 开发计划 | [docs/development-plan.md](docs/development-plan.md) | Sprint 级别任务分解 |
 | 迭代日志 | [docs/iteration-log.md](docs/iteration-log.md) | 需求/架构变更追踪 |
 | 开发规范 | [docs/development-standards.md](docs/development-standards.md) | 架构原则 + 编码规范 + 流程规范 + 文档规范 + 反模式（持续演进） |
 | V1 设计稿 | [docs/design/v1-design-doc.md](docs/design/v1-design-doc.md) | V1.0 设计目标、效果、思路（已验收，冻结） |
 | V2 设计稿 | [docs/design/v2-design-doc.md](docs/design/v2-design-doc.md) | V2.0 AI 模块设计（已验收，冻结） |
 | V3 设计稿 | [docs/design/v3-design-doc.md](docs/design/v3-design-doc.md) | V3.0 可视化/预算/导出设计（已验收，冻结） |
+| V4 设计稿 | [docs/design/v4-design-doc.md](docs/design/v4-design-doc.md) | V4.0 微服务工程化改造设计（当前版本，持续更新） |
 
 ---
 
@@ -104,16 +105,25 @@ ai-expense-tracker-cloud/
 │       └── v1-design-doc.md           # V1.0 设计稿
 │
 ├── backend/                           # Maven 多模块父项目
-│   ├── pom.xml                        # 父 POM（Spring Cloud BOM + Alibaba BOM + 模块聚合）
-│   ├── expense-common/                # 公共模块（XUserFilter + SecurityUtil + ApiResponse）
-│   ├── expense-security/              # 安全模块（JwtTokenProvider，JwtAuthFilter→Gateway）
-│   ├── expense-gateway/               # [V4.0 新建] Spring Cloud Gateway + JWT 校验
-│   ├── expense-user/                  # user-service（:8081，含 UserServiceApplication）
-│   ├── expense-category/              # category-service（:8082）
-│   ├── expense-bill/                  # bill-service（:8083，含 budget）
-│   ├── expense-statistics/            # statistics-service（:8084）
-│   ├── expense-ai/                    # ai-service（:8085，SSE + Redis）
-│   └── expense-server/                # 启动模块（待移除，V4.0 后各服务独立启动）
+│   ├── pom.xml                        #   父 POM（Spring Cloud BOM + Alibaba BOM + 模块聚合）
+│   ├── Dockerfile.base-builder        #   共享基础镜像（只含 expense-framework）
+│   ├── expense-framework/             #   共享框架（JWT/Feign/MyBatisPlus 配置）
+│   ├── expense-gateway/               #   API 网关 :8080
+│   ├── expense-user/                  #   用户服务 :8081（单模块）
+│   ├── expense-category/              #   分类服务 :8082
+│   │   ├── expense-category-api/      #     Feign 接口 + DTO
+│   │   ├── expense-category-common/   #     内部共享 DTO
+│   │   └── expense-category-application/ #  Spring Boot 应用
+│   ├── expense-bill/                  #   账单服务 :8083
+│   │   ├── expense-bill-api/
+│   │   ├── expense-bill-common/
+│   │   └── expense-bill-application/
+│   ├── expense-budget/                #   预算服务 :8086（单模块）
+│   ├── expense-statistics/            #   统计服务 :8084
+│   │   ├── expense-statistics-api/
+│   │   ├── expense-statistics-common/
+│   │   └── expense-statistics-application/
+│   ├── expense-ai/                    #   AI 服务 :8085（单模块）
 │
 └── frontend/                          # Vue 3 前端项目（独立）
     ├── package.json
@@ -268,27 +278,52 @@ CategoryService {
 - 未登录访问任何页面跳转登录页，不显示 403/空白
 - 401/403 自动清 Token 跳登录；200+code≠200 用 ElMessage 展示错误
 
-### 5.7 Git 规范
+### 5.7 Docker 构建规范
 
+#### 5.7.1 基础镜像原则
+
+- **基础镜像（`Dockerfile.base-builder`）只包含共享框架**（`expense-framework`），不包含任何微服务相关内容
+- 基础镜像通过 `mvn install -f expense-framework/pom.xml` 直接构建，不依赖 Maven reactor
+- 父 POM 通过 `mvn install -N` 安装到本地仓库（子模块需要引用）
+- **禁止在基础镜像中 COPY 其他微服务的 POM 或源码**
+
+#### 5.7.2 微服务 Dockerfile 原则
+
+- 每个服务 Dockerfile **只 COPY 自己 + 编译依赖的兄弟模块源码和 POM**
+- 使用 `mvn install -f <dep>/pom.xml` 逐个安装编译依赖，再用 `mvn package -f <self>/pom.xml` 打包自身
+- **禁止使用 `-pl` 和 `-am`**（会触发 Maven reactor 验证所有模块）
+- 构建完成后 `docker compose up -d` 统一部署
+
+#### 5.7.3 构建流程
+
+```powershell
+# 1. 构建基础镜像（首次 ~2 min，后续缓存秒过）
+docker build -t expense-base-builder:latest -f backend/Dockerfile.base-builder backend/
+
+# 2. 按依赖顺序逐个构建微服务（每个 ~30-60s）
+docker compose build expense-gateway     # 只依赖 framework
+docker compose build expense-category    # 叶子服务
+docker compose build expense-user        # 依赖 category-api
+docker compose build expense-bill        # 依赖 category-api
+docker compose build expense-budget      # 依赖 category-api + statistics-api
+docker compose build expense-statistics  # 依赖 category-api + bill-api
+docker compose build expense-ai          # 依赖全部 api
+
+# 3. 全量部署
+docker compose up -d
 ```
-分支: main → develop → feature/* / bugfix/*
-提交: type(module): message
-示例: feat(transaction): add create transaction API
-      fix(user): fix login token issue
-      feat(frontend): add dashboard page
-```
 
-**提交内容规范**：只提交必要的代码、文档、配置文件。以下内容**严禁提交**：
-- 构建产物：`target/`、`*.jar`、`node_modules/`、`dist/`
-- 运行时数据：日志文件、数据库 volume 数据、截图文件
-- 测试临时文件：Playwright 快照/日志、浏览器截图
-- 大文件：>5MB 的二进制文件（Arthas jar、Docker 镜像 layer 等）
-- IDE 配置：`.idea/`、`.vscode/`
-- 以上全部写入 `.gitignore`
+#### 5.7.4 构建反馈要求
 
-**提交前检查**：`git status` 确认只有代码/文档/配置变更，无上述禁止项。
+- **逐个构建**，不得并行
+- 每个服务构建完成后即时汇报结果（成功/失败 + 耗时）
+- 失败时分析根因，修复后重新构建该服务，不跳过
 
-### 5.8 枚举与常量规范
+### 5.8 Git 规范
+
+（内容同前，略）
+
+### 5.9 枚举与常量规范
 
 - **固定值集合（如 INCOME/EXPENSE）必须定义枚举**，禁止魔法字符串散落各层
 - **枚举自带关联数据**：如 `BillType` 枚举携带默认分类列表，不另建静态 Map
@@ -296,7 +331,7 @@ CategoryService {
 - **命名避开 Java/Spring 通用关键字**：账单用 `Bill`/`BillType`/`billDate`，不用 `Transaction`（与 `@Transactional` 冲突）；命名前先确认不会产生歧义
 - 前端模板中如需判断类型，优先用枚举 `name()` 值做字符串比较
 
-### 5.9 测试要求
+### 5.10 测试要求
 
 - Service 层单元测试覆盖率 > 80%
 - Controller 使用 MockMvc 测试
@@ -330,7 +365,7 @@ CategoryService {
 - **容器镜像拉取规范**：启动 Docker 容器前，必须先询问用户是否需要使用私有镜像仓库，避免直接从 Docker Hub 拉取因网络原因失败。用户确认镜像地址后再执行。
 - **⚡ 容器最小资源配置（优先级：高）**：所有 Docker 容器必须配置 `deploy.resources.limits`（memory + cpus），遵循最小必要原则。JVM 容器需同时设置 `-Xms` / `-Xmx` 确保堆内存小于容器限制，否则 OOMKilled。新加容器时主动去查官方/社区推荐的最低配置，不拍脑袋。
 
-### 5.8 AI 模块规范
+### 5.11 AI 模块规范
 
 - **LLM 提供商**: DeepSeek（OpenAI 兼容 API），通过 RestTemplate 直调
 - **配置**: LLM 相关走全局变量 `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL` / `LLM_PROVIDER`，切换模型只需改值
@@ -338,7 +373,7 @@ CategoryService {
 - **AI 调用失败不阻断业务**：所有 AI 功能优雅降级，LLM 不可用时基础记账操作不受影响
 - **Prompt 设计原则**: 结构化输出（要求返回 JSON）、限定范围（只从已有分类中选择）、Temperature 0.3
 
-### 5.9 文档同步规范
+### 5.12 文档同步规范
 
 > 详见 [development-standards.md §4.1](docs/development-standards.md)
 
@@ -352,7 +387,7 @@ CategoryService {
 - `docs/development-plan.md` 中各 Sprint 的状态标记必须与实际情况一致
 - 文档一致性检查清单：改模块名 → `grep` 全局搜索旧名称 → 逐文件替换 → 确认无遗漏
 
-### 5.10 文件导出规范
+### 5.13 文件导出规范
 
 > 详见 [development-standards.md §2.7](docs/development-standards.md)
 

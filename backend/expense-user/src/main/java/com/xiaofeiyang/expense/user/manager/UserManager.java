@@ -2,7 +2,7 @@ package com.xiaofeiyang.expense.user.manager;
 
 import com.xiaofeiyang.expense.category.api.client.CategoryClient;
 import com.xiaofeiyang.expense.category.api.dto.InitDefaultsRequest;
-import com.xiaofeiyang.expense.security.JwtTokenProvider;
+import com.xiaofeiyang.expense.framework.config.JwtTokenProvider;
 import com.xiaofeiyang.expense.user.dto.*;
 import com.xiaofeiyang.expense.user.entity.User;
 import com.xiaofeiyang.expense.user.service.UserService;

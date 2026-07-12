@@ -41,7 +41,13 @@
       "mcp__playwright__browser_tabs",
       "mcp__playwright__browser_run_code_unsafe",
       "WebSearch(*)",
-      "WebFetch(*)"
+      "WebFetch(*)",
+      "PowerShell(curl *)",
+      "Skill(update-config)",
+      "PowerShell($token = \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJuYWNvcyIsImV4cCI6MTc4Mzg4NjQ0NH0.xJprZs03iYb6fgSkfcED8SYP3QGRLC_l22p3yaNWFh4\"; curl -s \"http://nacos.expense.com/nacos/v1/cs/configs?dataId=gateway-routes.yaml&group=expense-cloud&accessToken=$token\" 2>$null)",
+      "PowerShell($env = curl -s http://localhost:8080/actuator/env 2>$null; $envObj = $env | ConvertFrom-Json; $envObj.propertySources | ForEach-Object { $_.name })",
+      "mcp__playwright__browser_select_option",
+      "mcp__playwright__browser_press_key"
     ]
   }
 }

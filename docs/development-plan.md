@@ -390,12 +390,12 @@
 | Sprint 15 | 数据导出（CSV/Excel/PDF） | ✅ |
 | Sprint 16 | 文档收尾 | ✅ |
 | **总计** | **V3.0 全部完成** | ✅ |
-| Sprint 17 | Docker 容器化 + 基础设施（expense-api/gateway/XUserFilter） | 🟡 进行中 |
-| Sprint 18 | Spring Cloud 微服务拆分（Nacos/Feign/Sentinel） | ❌ |
-| Sprint 19 | 监控 + 收尾（Prometheus/Grafana） | ❌ |
-| Sprint 20 | CI/CD（GitHub Actions） | ❌ |
-| Sprint 21 | 云部署 | ❌ |
-| Sprint 22 | 文档收尾 | ❌ |
+| Sprint 17 | Docker 容器化 + 基础设施（Gateway/Nacos/docker-compose） | ✅ |
+| Sprint 18 | Spring Cloud 微服务拆分（Nacos 动态路由/Feign/ApiResponseDecoder） | ✅ |
+| Sprint 19 | 监控 + 收尾（全 API 验收 + 浏览器回归 + 7 项 BUG 修复 + 目录重构） | ✅ |
+| Sprint 20 | Framework Starter 拆分 + user/budget/ai 三模块化 | ❌ |
+| Sprint 21 | CI/CD（GitHub Actions） | ❌ |
+| Sprint 22 | 云部署 | ❌ |
 | **V4.0 总计** | **微服务工程化改造** | 🟡 |
 
 ---

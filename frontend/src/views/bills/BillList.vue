@@ -61,7 +61,7 @@
             <el-input-number v-model="form.amount" :min="0.01" :precision="2" style="width:100%" />
           </el-form-item>
           <el-form-item label="日期" prop="billDate">
-            <el-date-picker v-model="form.billDate" type="date" format="YYYY-MM-DD" value-format="YYYY-MM-DD" style="width:100%" />
+            <el-date-picker v-model="form.billDate" type="date" format="YYYY-MM-DD" value-format="YYYY-MM-DD" editable style="width:100%" />
           </el-form-item>
           <el-form-item label="备注">
             <el-input v-model="form.description" placeholder="选填" />
@@ -184,7 +184,11 @@ async function handleSave() {
 }
 
 async function handleDelete(id: number) {
-  await ElMessageBox.confirm('确定删除？', '确认', { type: 'warning' })
+  try {
+    await ElMessageBox.confirm('确定删除？', '确认', { type: 'warning' })
+  } catch {
+    return // user cancelled
+  }
   await deleteBill(id)
   ElMessage.success('删除成功')
   fetchList()
