@@ -101,10 +101,38 @@ backend/
 
 ### 2.1 模块依赖原则
 
-- `expense-starter-web/orm/redis` 三层 starter 按需引入：所有应用服务依赖 web；有 DB 的服务依赖 orm（内带 web）；AI 额外依赖 redis（内带 web）
-- 微服务间通过 Feign (`lb://expense-xxx`) 通信，禁止应用模块间直接 Maven 依赖
-- 对外提供 Feign API 的服务按三模块拆分（api / common / application）
-- 单模块服务暂不拆分（无 Feign 消费者，待后续统一）
+```
+共享 Starter（编译时依赖，按需引入）
+  ┌─────────────────────────────────────────────────────────┐
+  │ expense-starter-web                                     │
+  │ Web/Security/Feign/JWT/Nacos/Sentinel/Actuator          │
+  └────────────────────┬────────────────────────────────────┘
+                       │
+          ┌────────────┴────────────┐
+          │                         │
+  ┌───────▼──────────────┐  ┌──────▼────────────────────┐
+  │ expense-starter-orm  │  │ expense-starter-redis     │
+  │ MyBatis/DS/Flyway    │  │ Redis 连接配置             │
+  └──────────────────────┘  └───────────────────────────┘
+
+服务 → Starter 引用关系
+  expense-gateway        → 无（reactive 栈，独立声明）
+  expense-user           → orm（内带 web）
+  expense-category-app   → orm（内带 web）
+  expense-bill-app       → orm（内带 web）
+  expense-budget         → orm（内带 web）
+  expense-statistics-app → orm（内带 web）
+  expense-ai             → orm + redis（web + DB + Redis）
+
+API/Common 层（轻量 JAR，无 starter 依赖）
+  expense-category-api / expense-bill-api / expense-statistics-api
+  expense-category-common / expense-bill-common / expense-statistics-common
+
+核心规则：
+  - 服务间通过 Feign (lb://expense-xxx) 通信，禁止应用模块间直接 Maven 依赖
+  - 每个 starter 通过 AutoConfiguration.imports 独立注册，不使用 @Import
+  - API/Common 模块只依赖 openfeign + validation，不依赖任何 starter
+```
 
 ---
 
