@@ -1,0 +1,2 @@
+com.xiaofeiyang.expense.framework.autoconfigure.FrameworkMyBatisAutoConfiguration
+com.xiaofeiyang.expense.framework.autoconfigure.FrameworkDataSourceAutoConfiguration

@@ -1,12 +1,22 @@
-# Base builder — only expense-framework
+# Base builder — 3 starters: web → orm → redis
 FROM crpi-27zlqugq2208c0pz.cn-hangzhou.personal.cr.aliyuncs.com/xiaofeiyang930112/maven:3.9-eclipse-temurin-21-alpine AS builder
 WORKDIR /build
 
-# Only framework — mvn -f points directly to its POM, no reactor needed
+# Install parent POM first
 COPY pom.xml docker-settings.xml ./
-COPY expense-framework/pom.xml ./expense-framework/
-
-COPY expense-framework/src ./expense-framework/src/
-# Install parent POM first, then framework (child POMs need parent)
 RUN mvn install -f pom.xml -N -B -q
-RUN mvn install -f expense-framework/pom.xml -B -q -DskipTests
+
+# Layer 1: expense-starter-web (no dependencies on other starters)
+COPY expense-starter-web/pom.xml ./expense-starter-web/
+COPY expense-starter-web/src ./expense-starter-web/src/
+RUN mvn install -f expense-starter-web/pom.xml -B -q -DskipTests
+
+# Layer 2: expense-starter-orm (depends on web)
+COPY expense-starter-orm/pom.xml ./expense-starter-orm/
+COPY expense-starter-orm/src ./expense-starter-orm/src/
+RUN mvn install -f expense-starter-orm/pom.xml -B -q -DskipTests
+
+# Layer 3: expense-starter-redis (depends on web)
+COPY expense-starter-redis/pom.xml ./expense-starter-redis/
+COPY expense-starter-redis/src ./expense-starter-redis/src/
+RUN mvn install -f expense-starter-redis/pom.xml -B -q -DskipTests

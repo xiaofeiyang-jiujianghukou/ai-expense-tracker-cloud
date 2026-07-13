@@ -220,7 +220,9 @@ package com.example.expense.category.api.client;
 
 ## 1.6 微服务基础框架 Starter 规范（V4.0+）
 
-> **优先级：高**。`expense-framework` 是统一的基础设施 starter，所有微服务只需引用这一个依赖即可获得全部基础能力。**新增任何公共组件时必须遵守本节规范。**
+> **优先级：高**。基础设施已拆分为 3 个独立 starter — `expense-starter-web`（Web/Security/Feign/JWT/Nacos/Sentinel）、`expense-starter-orm`（MyBatis/DataSource/Flyway，含 web）、`expense-starter-redis`（Redis，含 web）。各服务按需引入。**新增任何公共组件时必须遵守本节规范。**
+>
+> ⚡ **Sprint 20 变更**：原 `expense-framework` 单模块已拆为 3 starter，下文代码示例中的 `expense-framework` 对应现在的 `expense-starter-web` 或 `expense-starter-orm`（视组件所属而定）。详见 `docs/design/v4-starter-split-plan.md`。
 
 ### 1.6.1 组件分类：必要组件 vs 非必要组件
 

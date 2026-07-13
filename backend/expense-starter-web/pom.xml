@@ -10,11 +10,10 @@
         <version>4.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>expense-framework</artifactId>
+    <artifactId>expense-starter-web</artifactId>
     <packaging>jar</packaging>
-    <name>Expense Framework</name>
-    <description>Microservices infrastructure starter — auto-configures Web/MVC, Security, MyBatis,
-        Redis, Feign, Actuator/Prometheus so each service only declares this one dependency</description>
+    <name>Expense Starter: Web</name>
+    <description>Web/MVC + Security + Feign + JWT + Nacos + Sentinel + Actuator — required by all application services</description>
 
     <dependencies>
         <!-- === Always-on: Web + Security + Feign === -->
@@ -30,33 +29,12 @@
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
-        <!-- LoadBalancer: required for Feign @FeignClient with service discovery -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
         </dependency>
 
-        <!-- === Always-on: Actuator + Prometheus === -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-actuator</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-registry-prometheus</artifactId>
-        </dependency>
-
-        <!-- === Conditional: MyBatis-Plus + MySQL (only services with DB) === -->
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>com.baomidou</groupId>
-            <artifactId>mybatis-plus-jsqlparser</artifactId>
-            <optional>true</optional>
-        </dependency>
+        <!-- === JWT === -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
@@ -69,30 +47,6 @@
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
-            <scope>runtime</scope>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-core</artifactId>
-            <optional>true</optional>
-        </dependency>
-        <dependency>
-            <groupId>org.flywaydb</groupId>
-            <artifactId>flyway-mysql</artifactId>
-            <scope>runtime</scope>
-            <optional>true</optional>
-        </dependency>
-
-        <!-- === Conditional: Redis (only ai-service) === -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-            <optional>true</optional>
-        </dependency>
 
         <!-- === Nacos (all services) === -->
         <dependency>
@@ -104,10 +58,20 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
 
-        <!-- === Sentinel (all services) — flow control + circuit breaking === -->
+        <!-- === Sentinel — flow control + circuit breaking === -->
         <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
+        </dependency>
+
+        <!-- === Actuator + Prometheus === -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
         </dependency>
 
         <!-- === Auto-configuration processor === -->

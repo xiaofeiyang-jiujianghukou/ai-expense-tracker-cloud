@@ -10,34 +10,22 @@
         <version>4.0.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>expense-user</artifactId>
+    <artifactId>expense-starter-redis</artifactId>
     <packaging>jar</packaging>
+    <name>Expense Starter: Redis</name>
+    <description>Redis connection defaults — for services that need Redis caching (includes expense-starter-web)</description>
 
     <dependencies>
+        <!-- Includes Web starter (Web + Security + Feign + JWT + Nacos + Sentinel + Actuator) -->
         <dependency>
             <groupId>com.xiaofeiyang</groupId>
-            <artifactId>expense-starter-orm</artifactId>
+            <artifactId>expense-starter-web</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.xiaofeiyang</groupId>
-            <artifactId>expense-category-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.xiaofeiyang</groupId>
-            <artifactId>expense-category-common</artifactId>
-        </dependency>
+
+        <!-- === Redis === -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-validation</artifactId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
     </dependencies>
-
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-        </plugins>
-    </build>
 </project>

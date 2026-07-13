@@ -73,14 +73,10 @@
 ```
 backend/
 ├── pom.xml                          # Maven 父 POM（版本管理 + 模块聚合）
-├── Dockerfile.base-builder          # 共享基础镜像（只含 expense-framework）
-├── expense-framework/               # 共享框架
-│   └── config/
-│       ├── ApiResponseDecoder.java  #   Feign 通用解码器（解包 ApiResponse.data）
-│       ├── JwtTokenProvider.java    #   JWT 生成+校验（@ConditionalOnProperty）
-│       ├── MyBatisPlusConfig.java   #   MyBatis-Plus 分页插件（@ConditionalOnClass）
-│       ├── UserContextFeignInterceptor.java  #   Feign X-User-Id 传播
-│       └── FeignErrorDecoder.java   #   Feign 错误解码
+├── Dockerfile.base-builder          # 共享基础镜像（3 个 starter：web/orm/redis）
+├── expense-starter-web/             # Web Starter（Web/Security/Feign/JWT/Nacos/Sentinel）
+├── expense-starter-orm/             # ORM Starter（MyBatis/DataSource/Flyway，含 web）
+├── expense-starter-redis/           # Redis Starter（Redis 配置，含 web）
 │
 ├── expense-gateway/                 # API 网关（单模块）
 ├── expense-user/                    # 用户服务（单模块，待拆三模块）
@@ -105,7 +101,7 @@ backend/
 
 ### 2.1 模块依赖原则
 
-- `expense-framework` 是所有服务的共享基础，包含通用配置和工具
+- `expense-starter-web/orm/redis` 三层 starter 按需引入：所有应用服务依赖 web；有 DB 的服务依赖 orm（内带 web）；AI 额外依赖 redis（内带 web）
 - 微服务间通过 Feign (`lb://expense-xxx`) 通信，禁止应用模块间直接 Maven 依赖
 - 对外提供 Feign API 的服务按三模块拆分（api / common / application）
 - 单模块服务暂不拆分（无 Feign 消费者，待后续统一）
@@ -139,9 +135,9 @@ Client → Nginx → Gateway [JwtValidationGlobalFilter]
 | 组件 | 位置 | 职责 |
 |------|------|------|
 | `JwtValidationGlobalFilter` | expense-gateway | Gateway GlobalFilter，解析 JWT → 注入 header |
-| `XUserFilter` | expense-framework | 下游 OncePerRequestFilter |
-| `JwtTokenProvider` | expense-framework | JWT 生成 + 校验（仅 user/gateway 使用，`@ConditionalOnProperty("jwt.secret")`） |
-| `UserContextFeignInterceptor` | expense-framework | Feign RequestInterceptor |
+| `XUserFilter` | expense-starter-web | 下游 OncePerRequestFilter |
+| `JwtTokenProvider` | expense-starter-web | JWT 生成 + 校验（仅 user/gateway 使用，`@ConditionalOnProperty("jwt.secret")`） |
+| `UserContextFeignInterceptor` | expense-starter-web | Feign RequestInterceptor |
 
 ### 3.1 SSE 线程上下文传播
 
@@ -339,8 +335,8 @@ ttlExecutor.execute(() -> {
 
 ### 8.1 基础镜像（`Dockerfile.base-builder`）
 
-- **只包含 `expense-framework`**，不含任何微服务
-- 通过 `mvn install -f expense-framework/pom.xml` 直接构建
+- **只包含 3 个共享 starter**（`expense-starter-web` → `expense-starter-orm` → `expense-starter-redis`），不含任何微服务
+- 按依赖顺序构建：`mvn install -f expense-starter-web/pom.xml` → orm → redis
 - 服务构建时 `FROM expense-base-builder`，继承 framework JAR + 依赖缓存
 
 ### 8.2 服务 Dockerfile

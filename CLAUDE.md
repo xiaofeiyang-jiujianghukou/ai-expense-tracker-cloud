@@ -106,8 +106,10 @@ ai-expense-tracker-cloud/
 │
 ├── backend/                           # Maven 多模块父项目
 │   ├── pom.xml                        #   父 POM（Spring Cloud BOM + Alibaba BOM + 模块聚合）
-│   ├── Dockerfile.base-builder        #   共享基础镜像（只含 expense-framework）
-│   ├── expense-framework/             #   共享框架（JWT/Feign/MyBatisPlus 配置）
+│   ├── Dockerfile.base-builder        #   共享基础镜像（3 个 starter：web/orm/redis）
+│   ├── expense-starter-web/           #   Web Starter（Web/Security/Feign/JWT/Nacos/Sentinel）
+│   ├── expense-starter-orm/           #   ORM Starter（MyBatis/DataSource/Flyway，含 web）
+│   ├── expense-starter-redis/         #   Redis Starter（Redis 配置，含 web）
 │   ├── expense-gateway/               #   API 网关 :8080
 │   ├── expense-user/                  #   用户服务 :8081（单模块）
 │   ├── expense-category/              #   分类服务 :8082
@@ -282,8 +284,8 @@ CategoryService {
 
 #### 5.7.1 基础镜像原则
 
-- **基础镜像（`Dockerfile.base-builder`）只包含共享框架**（`expense-framework`），不包含任何微服务相关内容
-- 基础镜像通过 `mvn install -f expense-framework/pom.xml` 直接构建，不依赖 Maven reactor
+- **基础镜像（`Dockerfile.base-builder`）只包含共享 starter**（`expense-starter-web`、`expense-starter-orm`、`expense-starter-redis`），不包含任何微服务相关内容
+- 基础镜像按依赖顺序构建：`mvn install -f expense-starter-web/pom.xml` → orm → redis，不依赖 Maven reactor
 - 父 POM 通过 `mvn install -N` 安装到本地仓库（子模块需要引用）
 - **禁止在基础镜像中 COPY 其他微服务的 POM 或源码**
 

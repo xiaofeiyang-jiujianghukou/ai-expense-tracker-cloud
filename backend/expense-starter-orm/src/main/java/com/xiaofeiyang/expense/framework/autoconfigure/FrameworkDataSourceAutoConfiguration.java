@@ -1,9 +1,11 @@
 package com.xiaofeiyang.expense.framework.autoconfigure;
 
 import com.zaxxer.hikari.HikariDataSource;
+import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -16,6 +18,11 @@ import javax.sql.DataSource;
  * the service includes MyBatis-Plus / MySQL connector). If the service
  * provides its own DataSource bean, this one is skipped.</p>
  *
+ * <p>Runs <em>before</em> Spring Boot's {@link DataSourceAutoConfiguration}
+ * so our programmatic DataSource bean is registered first, preventing
+ * Boot's property-based auto-config from failing on missing
+ * {@code spring.datasource.url}.</p>
+ *
  * <p>Expected environment variables:
  * <ul>
  *   <li>{@code DB_HOST} — MySQL host (default: localhost)</li>
@@ -26,6 +33,7 @@ import javax.sql.DataSource;
  */
 @Configuration
 @ConditionalOnClass(HikariDataSource.class)
+@AutoConfigureBefore(DataSourceAutoConfiguration.class)
 public class FrameworkDataSourceAutoConfiguration {
 
     @Bean

@@ -393,7 +393,7 @@
 | Sprint 17 | Docker 容器化 + 基础设施（Gateway/Nacos/docker-compose） | ✅ |
 | Sprint 18 | Spring Cloud 微服务拆分（Nacos 动态路由/Feign/ApiResponseDecoder） | ✅ |
 | Sprint 19 | 监控 + 收尾（全 API 验收 + 浏览器回归 + 7 项 BUG 修复 + 目录重构） | ✅ |
-| Sprint 20 | Framework Starter 拆分 + user/budget/ai 三模块化 | ❌ |
+| Sprint 20 | Framework Starter 拆分（expense-framework → web/orm/redis 3 starter） | ✅ |
 | Sprint 21 | CI/CD（GitHub Actions） | ❌ |
 | Sprint 22 | 云部署 | ❌ |
 | **V4.0 总计** | **微服务工程化改造** | 🟡 |

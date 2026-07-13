@@ -14,9 +14,5 @@
     <name>Statistics Service Common</name>
     <description>Shared VO/DTOs for statistics-service — standard JAR, no Spring Boot plugin</description>
     <dependencies>
-        <dependency>
-            <groupId>com.xiaofeiyang</groupId>
-            <artifactId>expense-framework</artifactId>
-        </dependency>
     </dependencies>
 </project>

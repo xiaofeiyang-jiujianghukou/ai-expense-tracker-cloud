@@ -7,6 +7,27 @@
 
 ## 迭代记录
 
+### #016 — 2026-07-13 | Sprint 20: Framework Starter 拆分为 3 独立 Starter
+
+**类型**: 架构重构
+
+**内容**:
+- 将 `expense-framework`（17 个类，大而全单模块）拆为 3 个按需引入的 starter：
+  - `expense-starter-web`：Web + Security + Feign + JWT + Nacos + Sentinel + Actuator（全部应用服务）
+  - `expense-starter-orm`：MyBatis-Plus + DataSource + Flyway（有 DB 的服务，依赖 web）
+  - `expense-starter-redis`：Redis 配置（仅 AI，依赖 web）
+- 修改 12 个服务 POM：`expense-framework` → 按需 starter，删除手动声明的 DB/Redis 依赖
+- FrameworkAutoConfiguration 去掉 `@Import`，各 starter 通过 `AutoConfiguration.imports` 独立注册
+- Flyway 属性从 web 移至 orm starter（`framework-mybatis-defaults.properties`）
+- DataSource 从编程式创建改为属性注入（`spring.datasource.*`），避免与 Boot 的 DataSourceAutoConfiguration 冲突
+- `@AutoConfigureBefore(DataSourceAutoConfiguration.class)` 确保属性优先注入
+- 更新 Dockerfile.base-builder：3 层 starter 按依赖顺序安装（web → orm → redis）
+- API/Common 模块移除多余 `expense-framework` 依赖（零 import 使用）
+- 浏览器验收：全部 6 页面零错误，7/7 Nacos 注册，12/12 容器运行
+- 新增 favicon.svg 消除 404 错误
+
+**影响模块**: expense-framework (删除), expense-starter-web/orm/redis (新增), 12 个服务 POM, Dockerfile.base-builder
+
 ### #015 — 2026-07-12 | V4.0 微服务架构设计 + Sprint 17 基础设施搭建
 
 **类型**: 架构设计 + 实现
