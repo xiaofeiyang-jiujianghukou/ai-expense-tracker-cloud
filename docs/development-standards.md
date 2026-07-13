@@ -60,7 +60,10 @@
 
 ## 1.3 多模块依赖设计
 
+> ⚡ **V4.0 更新**：以下为 V1~V3 单体版模块结构。V4.0 微服务版已演进为 3 starter（web/orm/redis）+ 7 独立微服务，共享基础设施通过 starter 按需引入（见 §1.6）。跨模块通信从本地 Manager 调用改为 Feign 远程调用。
+
 ```
+V1~V3 单体架构:
 expense-server                         ← 启动模块 + 跨模块 Manager
     ↓ 依赖
 expense-user / expense-category / expense-bill / expense-statistics / expense-ai / expense-budget
@@ -70,9 +73,15 @@ expense-security                       ← JWT + Security Config
 expense-common                         ← 公共工具、异常、枚举
     ↓ 依赖
 Spring Boot / MyBatis-Plus / Lombok / MySQL Driver / ...
+
+V4.0 微服务架构:
+expense-starter-web                    ← Web/Security/Feign/JWT/Nacos/Sentinel（全部应用服务）
+    ↑ 依赖
+expense-starter-orm   (MyBatis/DataSource/Flyway)   ← 有 DB 的服务
+expense-starter-redis (Redis)                       ← 仅 AI
 ```
 
-**关键决策**：业务模块之间**不直接相互依赖**。跨模块编排通过 expense-server 的 Manager 实现。拆分微服务时，Manager 对 Service 的本地调用改为 Feign 远程调用，业务代码不变。
+**关键决策**：业务模块之间**不直接相互依赖**。V3 中跨模块编排通过 expense-server 的 Manager 实现；V4 中服务间通信通过 Feign（`lb://expense-xxx`）+ 网关，业务代码不变。
 
 ## 1.4 前端设计原则
 
@@ -98,7 +107,7 @@ Spring Boot / MyBatis-Plus / Lombok / MySQL Driver / ...
 
 ```
 expense-category-api/                ← API 模块（轻量 JAR，对外发布）
-│   └── pom.xml                       依赖：仅 expense-common + openfeign
+│   └── pom.xml                       依赖：仅 openfeign（无重量框架依赖）
 │
 expense-category-application/        ← 应用模块（Spring Boot 可执行 JAR，只部署不发布）
 │   └── pom.xml                       依赖：-api + -common + 全部运行时依赖
@@ -467,7 +476,7 @@ JacksonAutoConfiguration → 创建 Builder → 收集 Customizer Bean
 | Manager | 模块 + Manager | `UserManager`（具体类） |
 | Controller | 模块 + Controller | `UserController` |
 | DTO | 用途 + Request/Response/VO | `RegisterRequest`, `LoginResponse` |
-| Maven 模块 | expense-xxx | `expense-user`, `expense-common` |
+| Maven 模块 | expense-xxx | `expense-user`, `expense-starter-web` |
 
 ## 2.2 前端命名规范
 

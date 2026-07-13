@@ -109,19 +109,29 @@ expense-{domain}-application/   ← Spring Boot 应用（Controller + Service + 
 | ai | — | `expense-ai`（单模块） | 无 Feign 消费者 |
 | budget | — | `expense-budget`（单模块） | 独立部署，无 Feign 消费者 |
 
-### 3.3 共享模块
+### 3.3 共享 Starter（Sprint 20 重构）
 
-| 模块 | 类型 | 内容 |
-|------|------|------|
-| **expense-common** | 共享 JAR | `ApiResponse`、`SecurityUtil`、`XUserFilter`、`UserContextFeignInterceptor` |
-| **expense-security** | 共享 JAR（精简） | `JwtTokenProvider`（Gateway 鉴权用） |
+> ⚡ **2026-07-13 更新**：原 `expense-common` + `expense-security` 已合并重构为 `expense-framework`，再拆分为 3 个独立 starter。
+
+| Starter | 关系 | 内容 |
+|---------|------|------|
+| **expense-starter-web** | 基础层 | Web/MVC + Security + Feign + JWT + Nacos + Sentinel + Actuator + ApiResponse + 异常体系 + BillType 枚举 |
+| **expense-starter-orm** | 依赖 web | MyBatis-Plus + DataSource（env vars）+ Flyway |
+| **expense-starter-redis** | 依赖 web | Redis 连接配置（env vars） |
+
+**各服务引用**：
+- 所有应用服务（user/category/bill/budget/statistics/ai）→ `expense-starter-web`（通过 orm 或 redis 间接引入）
+- 有 DB 的服务（user/category/bill/budget/statistics）→ `expense-starter-orm`
+- AI → `expense-starter-orm` + `expense-starter-redis`
+- Gateway → **不引用任何 starter**（reactive 栈，独立声明依赖）
 
 ### 3.4 模块依赖原则
 
 ```
 🚫 应用模块间禁止相互引用（如 bill-application 不能依赖 budget-application）
 ✅ 服务间通信 → Feign（通过 API 模块）+ 网关
-✅ 公共代码 → expense-common 共享
+✅ 共享基础设施 → 3 个 starter（web / orm / redis），按需引入
+✅ 各 starter 的 AutoConfiguration.imports 独立注册，无需 @Import
 ```
 
 ---
@@ -154,8 +164,8 @@ V4.0（微服务）:
 | 组件 | 位置 | 职责 |
 |------|------|------|
 | `JwtValidationGlobalFilter` | expense-gateway | Gateway GlobalFilter，解析 JWT → 注入 header |
-| `XUserFilter` | expense-common | 下游 OncePerRequestFilter，读 header → 设 SecurityContext |
-| `UserContextFeignInterceptor` | expense-common | Feign RequestInterceptor，自动传播 X-User-Id |
+| `XUserFilter` | expense-starter-web | 下游 OncePerRequestFilter，读 header → 设 SecurityContext |
+| `UserContextFeignInterceptor` | expense-starter-web | Feign RequestInterceptor，自动传播 X-User-Id |
 
 ---
 
