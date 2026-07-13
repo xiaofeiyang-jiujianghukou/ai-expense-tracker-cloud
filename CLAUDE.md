@@ -110,8 +110,11 @@ ai-expense-tracker-cloud/
 │   ├── expense-starter-web/           #   Web Starter（Web/Security/Feign/JWT/Nacos/Sentinel）
 │   ├── expense-starter-orm/           #   ORM Starter（MyBatis/DataSource/Flyway，含 web）
 │   ├── expense-starter-redis/         #   Redis Starter（Redis 配置，含 web）
-│   ├── expense-gateway/               #   API 网关 :8080
-│   ├── expense-user/                  #   用户服务 :8081（单模块）
+│   ├── expense-gateway/               #   API 网关 :8080（单模块，reactive）
+│   ├── expense-user/                  #   用户服务 :8081（三模块）
+│   │   ├── expense-user-api/          #     Feign 接口 + DTO
+│   │   ├── expense-user-common/       #     共享 DTO
+│   │   └── expense-user-application/  #     Spring Boot 应用
 │   ├── expense-category/              #   分类服务 :8082
 │   │   ├── expense-category-api/      #     Feign 接口 + DTO
 │   │   ├── expense-category-common/   #     内部共享 DTO
@@ -120,12 +123,18 @@ ai-expense-tracker-cloud/
 │   │   ├── expense-bill-api/
 │   │   ├── expense-bill-common/
 │   │   └── expense-bill-application/
-│   ├── expense-budget/                #   预算服务 :8086（单模块）
 │   ├── expense-statistics/            #   统计服务 :8084
 │   │   ├── expense-statistics-api/
 │   │   ├── expense-statistics-common/
 │   │   └── expense-statistics-application/
-│   ├── expense-ai/                    #   AI 服务 :8085（单模块）
+│   ├── expense-budget/                #   预算服务 :8086（三模块）
+│   │   ├── expense-budget-api/
+│   │   ├── expense-budget-common/
+│   │   └── expense-budget-application/
+│   ├── expense-ai/                    #   AI 服务 :8085（三模块）
+│   │   ├── expense-ai-api/
+│   │   ├── expense-ai-common/
+│   │   └── expense-ai-application/
 │
 └── frontend/                          # Vue 3 前端项目（独立）
     ├── package.json
@@ -307,8 +316,8 @@ docker compose build expense-gateway     # 只依赖 framework
 docker compose build expense-category    # 叶子服务
 docker compose build expense-user        # 依赖 category-api
 docker compose build expense-bill        # 依赖 category-api
-docker compose build expense-budget      # 依赖 category-api + statistics-api
 docker compose build expense-statistics  # 依赖 category-api + bill-api
+docker compose build expense-budget      # 依赖 category-api + statistics-api
 docker compose build expense-ai          # 依赖全部 api
 
 # 3. 全量部署

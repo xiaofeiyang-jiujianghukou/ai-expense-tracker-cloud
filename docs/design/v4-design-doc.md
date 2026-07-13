@@ -91,23 +91,26 @@
 
 ### 3.1 拆分原则
 
-对外提供 Feign API 的服务拆为三模块，无人调用的服务保持单模块：
+所有应用服务统一按三模块拆分（Sprint 20 完成）：
 
 ```
 expense-{domain}-api/           ← 轻量 JAR（Feign 接口 + DTO），对外发布
+expense-{domain}-common/        ← 共享 DTO/VO（被其他服务 import）
 expense-{domain}-application/   ← Spring Boot 应用（Controller + Service + Mapper），只部署不发布
 ```
 
 ### 3.2 当前拆分清单
 
-| 服务 | API 模块 | 应用模块 | 拆分原因 |
-|------|---------|---------|---------|
-| category | `expense-category-api` | `expense-category-application` | 被 bill/statistics 调用 |
-| bill | `expense-bill-api` | `expense-bill-application` | 被 statistics 调用 |
-| statistics | `expense-statistics-api` | `expense-statistics-application` | 被 ai 调用 |
-| user | — | `expense-user`（单模块） | 无 Feign 消费者 |
-| ai | — | `expense-ai`（单模块） | 无 Feign 消费者 |
-| budget | — | `expense-budget`（单模块） | 独立部署，无 Feign 消费者 |
+| 服务 | API 模块 | Common 模块 | 应用模块 | Feign 消费者 |
+|------|---------|------------|---------|-------------|
+| category | `expense-category-api` | `expense-category-common` | `expense-category-application` | bill, statistics, user, budget, ai |
+| bill | `expense-bill-api` | `expense-bill-common` | `expense-bill-application` | statistics, ai |
+| statistics | `expense-statistics-api` | `expense-statistics-common` | `expense-statistics-application` | budget, ai |
+| user | `expense-user-api` | `expense-user-common` | `expense-user-application` | 暂无（预留） |
+| budget | `expense-budget-api` | `expense-budget-common` | `expense-budget-application` | 暂无（预留） |
+| ai | `expense-ai-api` | `expense-ai-common` | `expense-ai-application` | 暂无（预留） |
+
+> ⚡ **Sprint 20 更新**：user/budget/ai 已完成三模块拆分，API 模块预留 Feign 接口供未来消费者使用。Gateway 保持单模块（reactive 栈）。
 
 ### 3.3 共享 Starter（Sprint 20 重构）
 

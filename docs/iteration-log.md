@@ -7,26 +7,36 @@
 
 ## 迭代记录
 
-### #016 — 2026-07-13 | Sprint 20: Framework Starter 拆分为 3 独立 Starter
+### #016 — 2026-07-13 | Sprint 20: Framework Starter 拆分 + 三模块拆分
 
 **类型**: 架构重构
 
 **内容**:
-- 将 `expense-framework`（17 个类，大而全单模块）拆为 3 个按需引入的 starter：
-  - `expense-starter-web`：Web + Security + Feign + JWT + Nacos + Sentinel + Actuator（全部应用服务）
-  - `expense-starter-orm`：MyBatis-Plus + DataSource + Flyway（有 DB 的服务，依赖 web）
-  - `expense-starter-redis`：Redis 配置（仅 AI，依赖 web）
-- 修改 12 个服务 POM：`expense-framework` → 按需 starter，删除手动声明的 DB/Redis 依赖
-- FrameworkAutoConfiguration 去掉 `@Import`，各 starter 通过 `AutoConfiguration.imports` 独立注册
-- Flyway 属性从 web 移至 orm starter（`framework-mybatis-defaults.properties`）
-- DataSource 从编程式创建改为属性注入（`spring.datasource.*`），避免与 Boot 的 DataSourceAutoConfiguration 冲突
-- `@AutoConfigureBefore(DataSourceAutoConfiguration.class)` 确保属性优先注入
-- 更新 Dockerfile.base-builder：3 层 starter 按依赖顺序安装（web → orm → redis）
-- API/Common 模块移除多余 `expense-framework` 依赖（零 import 使用）
-- 浏览器验收：全部 6 页面零错误，7/7 Nacos 注册，12/12 容器运行
-- 新增 favicon.svg 消除 404 错误
 
-**影响模块**: expense-framework (删除), expense-starter-web/orm/redis (新增), 12 个服务 POM, Dockerfile.base-builder
+**Framework Starter 拆分**:
+- 将 `expense-framework`（17 类）拆为 3 个按需引入的 starter：
+  - `expense-starter-web`：Web/Security/Feign/JWT/Nacos/Sentinel/Actuator
+  - `expense-starter-orm`：MyBatis-Plus/DataSource/Flyway（依赖 web）
+  - `expense-starter-redis`：Redis 配置（依赖 web）
+- 修改 12 个服务 POM：`expense-framework` → 按需 starter
+- FrameworkAutoConfiguration 去掉 `@Import`，各 starter 通过 `AutoConfiguration.imports` 独立注册
+- DataSource 从编程式创建改为属性注入 + `@AutoConfigureBefore`
+- Dockerfile.base-builder：3 层按依赖顺序安装
+
+**三模块拆分** (user/budget/ai):
+- expense-user → expense-user-api / expense-user-common / expense-user-application
+- expense-budget → expense-budget-api / expense-budget-common / expense-budget-application
+- expense-ai → expense-ai-api / expense-ai-common / expense-ai-application
+- DTO 移入 common 模块（包路径不变，application 零改动）
+- 3 个 Dockerfile + docker-compose.yml 路径更新
+
+**其他**:
+- 新增 favicon.svg，趋势图 legend 右上角修复
+- 全量架构文档同步：CLAUDE.md / architecture-design / v4-design-doc / development-standards / README
+- 浏览器验收：6/6 页面, 12/12 容器, 7/7 Nacos, 0 Console 错误
+- 生成验收报告 `docs/acceptance-report-sprint-20.md`
+
+**影响模块**: expense-framework (删除), 6 个 starter/api/common 模块 (新增), 18 个 POM/Dockerfile/YML, 7 个文档
 
 ### #015 — 2026-07-12 | V4.0 微服务架构设计 + Sprint 17 基础设施搭建
 
