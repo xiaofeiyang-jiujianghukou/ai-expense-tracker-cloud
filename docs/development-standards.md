@@ -220,175 +220,165 @@ package com.example.expense.category.api.client;
 
 ## 1.6 微服务基础框架 Starter 规范（V4.0+）
 
-> **优先级：高**。基础设施已拆分为 3 个独立 starter — `expense-starter-web`（Web/Security/Feign/JWT/Nacos/Sentinel）、`expense-starter-orm`（MyBatis/DataSource/Flyway，含 web）、`expense-starter-redis`（Redis，含 web）。各服务按需引入。**新增任何公共组件时必须遵守本节规范。**
+> **优先级：高**。基础设施已拆分为 3 个独立 starter，各服务按需引入。**新增任何公共组件时必须遵守本节规范。**
 >
-> ⚡ **Sprint 20 变更**：原 `expense-framework` 单模块已拆为 3 starter，下文代码示例中的 `expense-framework` 对应现在的 `expense-starter-web` 或 `expense-starter-orm`（视组件所属而定）。详见 `docs/design/v4-starter-split-plan.md`。
+> ⚡ **Sprint 20 重构**（2026-07-13）：原 `expense-framework` 单模块已拆为 3 starter，详见 `docs/design/v4-starter-split-plan.md`。
 
-### 1.6.1 组件分类：必要组件 vs 非必要组件
+### 1.6.1 三个 Starter 总览
 
-引入新组件时，第一步是判断它属于哪一类：
+| Starter | 内容 | 依赖关系 | 适用服务 |
+|---------|------|---------|---------|
+| **expense-starter-web** | Web/MVC + Security + Feign + JWT + Nacos + Sentinel + Actuator + ApiResponse + 异常体系 | 无 | 全部 6 个应用服务（user/category/bill/budget/statistics/ai） |
+| **expense-starter-orm** | MyBatis-Plus + DataSource（env vars）+ Flyway | 依赖 web | 有 DB 的服务（user/category/bill/budget/statistics） |
+| **expense-starter-redis** | Redis 连接配置（env vars） | 依赖 web | 仅 AI |
 
-| 分类 | 定义 | 判断标准 | 加载方式 |
-|------|------|---------|---------|
-| **必要组件** | 每个微服务都必须使用的 | 网关、user、category、bill、statistics、ai 六个服务**全部需要** | 始终加载，无需条件注解 |
-| **非必要组件** | 仅部分服务需要 | 至少存在一个服务**不需要** | `@ConditionalOnClass`，服务 POM opt-in |
-
-**判定流程：**
 ```
-新组件 → 遍历所有微服务 → 全部需要？
-  ├── 是 → 必要组件 → 始终加载
-  └── 否 → 非必要组件 → @ConditionalOnClass opt-in
+各服务引用关系：
+  gateway          → 无（reactive 栈，独立声明）
+  user             → starter-orm（内带 web）
+  category-app     → starter-orm（内带 web）
+  bill-app         → starter-orm（内带 web）
+  budget           → starter-orm（内带 web）
+  statistics-app   → starter-orm（内带 web）
+  ai               → starter-orm + starter-redis（web + DB + Redis）
 ```
 
-### 1.6.2 必要组件实现规范
+### 1.6.2 新增组件判定：选哪个 Starter？
 
-必要组件**不**加 `@ConditionalOnClass`，框架 POM 中**不**标记 `optional`。
+引入新组件时，按以下流程决定放入哪个 starter：
 
-**属性文件：** 放在 `framework-defaults.properties`（全局加载，`FrameworkAutoConfiguration` 上通过 `@PropertySource` 引入）。
+```
+新组件 → 六个应用服务全部需要？
+  ├── 是 → expense-starter-web
+  └── 否 → 需要 DB 依赖（MyBatis/MySQL/Flyway）？
+              ├── 是 → expense-starter-orm
+              └── 否 → 仅 AI 需要？
+                        ├── 是 → expense-starter-redis
+                        └── 否 → 不放入任何 starter，各服务自行声明
+```
 
-**Auto-configuration 类：** 不加条件注解，直接通过 `@Import` 或 `@Bean` 注册。
+### 1.6.3 expense-starter-web 规范
 
-**示例：**
+**依赖全部非 optional**，所有应用服务都需要。属性放入 `framework-defaults.properties`。
+
+**AutoConfiguration.imports** 只注册 `FrameworkAutoConfiguration`（入口），其 `@ComponentScan` 自动发现同包名下的 Security/Feign/Web 等 `@Configuration` 类。**不使用 `@Import`**——各 starter 通过自己的 `AutoConfiguration.imports` 独立注册。
+
 ```java
-// ✅ 必要组件 — 所有服务都需要 Actuator，无需条件
-// framework-defaults.properties:
-management.endpoints.web.exposure.include=health,info,prometheus,metrics
-```
-
-```
-当前必要组件：
-├── Web + MVC           (spring-boot-starter-web，非 optional)
-├── Security            (XUserFilter + SecurityFilterChain)
-├── Feign 拦截器         (UserContextFeignInterceptor，全局 Bean 静默注入，开发者无需感知)
-├── Nacos 注册/配置      (spring-cloud-starter-alibaba-nacos-*)
-├── Actuator + Prometheus (始终暴露 /actuator/prometheus)
-└── 全局异常处理          (GlobalExceptionHandler + ApiResponse)
-```
-
-### 1.6.3 非必要组件实现规范
-
-非必要组件必须满足 **"引了就说明需要，没引就是不需要"** 原则——服务不引入该依赖时，启动日志零报错零警告，连一行配置都不需要写。
-
-**实现三步：**
-
-**① 框架 POM 中标记 `optional`：**
-```xml
-<!-- expense-framework/pom.xml -->
-<dependency>
-    <groupId>com.baomidou</groupId>
-    <artifactId>mybatis-plus-spring-boot3-starter</artifactId>
-    <optional>true</optional>   <!-- ← 关键：服务不声明就不会引入 -->
-</dependency>
-```
-
-**② 独立属性文件（非 `framework-defaults.properties`）：**
-```
-framework-mybatis-defaults.properties   ← MyBatis 专用
-framework-redis-defaults.properties     ← Redis 专用
-```
-每个非必要组件一个独立 properties 文件，**绝不**放入全局 `framework-defaults.properties`。
-
-**③ Auto-configuration 类加 `@ConditionalOnClass` + `@PropertySource`：**
-```java
-// ✅ 正确：仅在 MyBatis-Plus 在 classpath 时才激活
+// expense-starter-web: FrameworkAutoConfiguration（简化后）
 @Configuration
-@ConditionalOnClass(MybatisPlusAutoConfiguration.class)
-@AutoConfigureBefore(MybatisPlusAutoConfiguration.class)
-@PropertySource("classpath:framework-mybatis-defaults.properties")
-public class FrameworkMyBatisAutoConfiguration {
-}
+@ComponentScan(basePackages = "com.xiaofeiyang.expense.framework")
+@PropertySource("classpath:framework-defaults.properties")
+public class FrameworkAutoConfiguration {}
 ```
 
 ```
-当前非必要组件：
-├── MyBatis-Plus   ← @ConditionalOnClass(MybatisPlusAutoConfiguration)
-│                    属性文件: framework-mybatis-defaults.properties
-├── MySQL DataSource ← @ConditionalOnClass(HikariDataSource)
-│                     从环境变量 DB_HOST/DB_PORT/EXPENSE_DB_USERNAME/EXPENSE_DB_PASSWORD
-├── Flyway          ← 无框架配置（Spring Boot 自带的 FlywayAutoConfiguration 处理）
-│                    服务 POM 声明 flyway-core 即自动启用
-└── Redis           ← @ConditionalOnClass(RedisTemplate)
-                     属性文件: framework-redis-defaults.properties
+expense-starter-web 当前组件：
+├── Web + MVC              (spring-boot-starter-web)
+├── Security               (SecurityFilterChain + XUserFilter + PasswordEncoder)
+├── Feign                  (ApiResponseDecoder + UserContextFeignInterceptor + FeignErrorDecoder)
+├── JWT                    (JwtTokenProvider, @ConditionalOnProperty("jwt.secret"))
+├── Nacos 注册/配置         (spring-cloud-starter-alibaba-nacos-*)
+├── Sentinel               (spring-cloud-starter-alibaba-sentinel)
+├── Actuator + Prometheus  (始终暴露 /actuator/prometheus)
+├── ApiResponse + 异常体系  (ApiResponse, BusinessException, ErrorCode, FeignCallException, GlobalExceptionHandler)
+└── BillType 枚举
 ```
 
-### 1.6.4 反模式与正确做法对照
+### 1.6.4 expense-starter-orm 规范
 
-| 场景 | ❌ 反模式 | ✅ 正确 |
-|------|---------|--------|
-| **全局属性文件** | 把 MyBatis/Flyway/Redis 默认值放进 `framework-defaults.properties` | 非必要组件独立 properties 文件，`@ConditionalOnClass` 隔离加载 |
-| **手动开关** | 服务写 `spring.flyway.enabled: false` 来关闭不需要的组件 | 服务不引入 flyway 依赖，压根不加载 |
-| **无差别依赖** | 框架 POM 中所有依赖无 `optional` 标记 | 非必要组件标记 `<optional>true</optional>` |
-| **全局 API 模块** | 建一个 `expense-api/` 放所有 Feign 接口 | 每个服务独立 `-api` 模块（见 §1.5） |
-| **缺少条件注解** | 非必要 AutoConfiguration 不加 `@ConditionalOnClass` | 必加，确保 classpath 无依赖时不报错 |
+**依赖 web**，额外提供 MyBatis-Plus + MySQL DataSource（环境变量）+ Flyway。属性放入 `framework-mybatis-defaults.properties`。
 
-### 1.6.5 新增组件 checklist
+**关键约束**：
+- `FrameworkMyBatisAutoConfiguration` 必须 `@AutoConfigureBefore({DataSourceAutoConfiguration.class, MybatisPlusAutoConfiguration.class})`，确保 `spring.datasource.*` 属性在 Boot 创建 DataSource 前注入
+- DataSource 通过属性注入（`spring.datasource.url=jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/...`），而非编程式创建，避免与 Boot 的 `DataSourceAutoConfiguration` 冲突
+- `FrameworkDataSourceAutoConfiguration` 作为 fallback（`@ConditionalOnProperty(name = "spring.datasource.url", havingValue = "false", matchIfMissing = true)`），仅在无属性配置时生效
 
-向 `expense-framework` 添加新组件时，逐项确认：
+**AutoConfiguration.imports** 注册：
+```
+com.xiaofeiyang.expense.framework.autoconfigure.FrameworkMyBatisAutoConfiguration
+com.xiaofeiyang.expense.framework.autoconfigure.FrameworkDataSourceAutoConfiguration
+```
 
 ```
-☐ 1. 判定分类：遍历全部微服务，确认是必要还是非必要
-☐ 2. [必要] 依赖不放 optional / [非必要] 依赖标记 <optional>true</optional>
-☐ 3. [必要] 默认值放入 framework-defaults.properties
-     [非必要] 新建独立 framework-{name}-defaults.properties
-☐ 4. 创建 Framework{Name}AutoConfiguration 类
-☐ 5. [非必要] 加 @ConditionalOnClass({核心类}.class)
-☐ 6. [非必要] 加 @PropertySource("classpath:framework-{name}-defaults.properties")
-☐ 7. 在 FrameworkAutoConfiguration 的 @Import 中注册
-☐ 8. 更新本文档 §1.6 的组件清单
-☐ 9. 编译验证：无此依赖的服务启动零报错
+expense-starter-orm 当前组件：
+├── MyBatis-Plus          (MyBatisPlusConfig + framework-mybatis-defaults.properties)
+├── MySQL DataSource      (属性注入: DB_HOST/DB_PORT/EXPENSE_DB_USERNAME/EXPENSE_DB_PASSWORD)
+└── Flyway                (framework-mybatis-defaults.properties 包含 flyway 默认值)
+```
+
+### 1.6.5 expense-starter-redis 规范
+
+**依赖 web**，额外提供 Redis 连接配置（环境变量）。属性放入 `framework-redis-defaults.properties`。
+
+```java
+@Configuration
+@ConditionalOnClass(RedisTemplate.class)
+@PropertySource(value = "classpath:framework-redis-defaults.properties", ignoreResourceNotFound = true)
+public class FrameworkRedisAutoConfiguration {}
+```
+
+```
+expense-starter-redis 当前组件：
+└── Redis 连接配置  (REDIS_HOST/REDIS_PORT/REDIS_PASSWORD)
 ```
 
 ### 1.6.6 属性文件一览
 
 ```
-expense-framework/src/main/resources/
-├── framework-defaults.properties          ← 必要组件（仅 Actuator）
-├── framework-mybatis-defaults.properties  ← 非必要（@ConditionalOnClass 隔离加载）
-└── framework-redis-defaults.properties    ← 非必要（@ConditionalOnClass 隔离加载）
+expense-starter-web/src/main/resources/
+├── application.properties                   ← 早期引导（Nacos import check）
+├── framework-defaults.properties            ← Nacos + Feign + Actuator（始终加载）
+
+expense-starter-orm/src/main/resources/
+├── application.properties                   ← 早期引导（Nacos import check）
+└── framework-mybatis-defaults.properties    ← MyBatis + DataSource + Flyway（@ConditionalOnClass 隔离加载）
+
+expense-starter-redis/src/main/resources/
+└── framework-redis-defaults.properties      ← Redis 连接（@ConditionalOnClass 隔离加载）
 ```
 
 ### 1.6.7 Auto-configuration 类清单
 
-| 类 | 条件 | 分类 | 职责 |
-|----|------|------|------|
-| `FrameworkAutoConfiguration` | 始终 | 入口 | `@ComponentScan` + `@PropertySource` 全局属性 + `@Import` 全部子配置 |
-| `FrameworkSecurityAutoConfiguration` | 始终 | 必要 | `SecurityFilterChain` + `XUserFilter` |
-| `FrameworkWebAutoConfiguration` | 始终 | 必要 | `GlobalExceptionHandler` |
-| `FrameworkFeignAutoConfiguration` | 始终 | 必要 | `UserContextFeignInterceptor` |
-| `FrameworkMyBatisAutoConfiguration` | `@ConditionalOnClass` | 非必要 | MyBatis-Plus 默认值 |
-| `FrameworkDataSourceAutoConfiguration` | `@ConditionalOnClass` | 非必要 | MySQL DataSource（环境变量） |
-| `FrameworkRedisAutoConfiguration` | `@ConditionalOnClass` | 非必要 | Redis 连接（环境变量） |
+| 类 | 所在 Starter | 条件 | 职责 |
+|----|------------|------|------|
+| `FrameworkAutoConfiguration` | web | 始终 | 入口：`@ComponentScan` + `@PropertySource` 全局属性 |
+| `FrameworkSecurityAutoConfiguration` | web | 始终（`@ComponentScan` 发现） | `SecurityFilterChain` + `XUserFilter` + `PasswordEncoder` |
+| `FrameworkWebAutoConfiguration` | web | 始终（`@ComponentScan` 发现） | `GlobalExceptionHandler` |
+| `FrameworkFeignAutoConfiguration` | web | `@ConditionalOnClass(RequestInterceptor)` | Feign 解码器/拦截器 |
+| `FrameworkMyBatisAutoConfiguration` | orm | `@ConditionalOnClass(MybatisPlusAutoConfiguration)` | MyBatis-Plus + DataSource + Flyway 默认值 |
+| `FrameworkDataSourceAutoConfiguration` | orm | `@ConditionalOnClass(HikariDataSource)` | 编程式 DataSource fallback |
+| `FrameworkRedisAutoConfiguration` | redis | `@ConditionalOnClass(RedisTemplate)` | Redis 连接默认值 |
 
 ### 1.6.8 服务 POM 与 application.yml 规范
 
-**服务 POM — 一个框架依赖搞定的写法：**
+**服务 POM — 按需引入 starter：**
 ```xml
-<!-- ✅ 必要组件：expense-framework 一个依赖全部覆盖 -->
+<!-- ✅ 需要 DB 的服务：一个 ORM starter 搞定 web + DB -->
 <dependency>
-    <groupId>com.example</groupId>
-    <artifactId>expense-framework</artifactId>
+    <groupId>com.xiaofeiyang</groupId>
+    <artifactId>expense-starter-orm</artifactId>
 </dependency>
 
-<!-- ✅ 非必要组件：服务显式声明需要的 -->
+<!-- ✅ AI 服务：需要 DB + Redis -->
 <dependency>
-    <groupId>com.baomidou</groupId>
-    <artifactId>mybatis-plus-spring-boot3-starter</artifactId>  <!-- 需要 DB -->
+    <groupId>com.xiaofeiyang</groupId>
+    <artifactId>expense-starter-orm</artifactId>
 </dependency>
 <dependency>
-    <groupId>com.mysql</groupId>
-    <artifactId>mysql-connector-j</artifactId>                <!-- 需要 DB -->
+    <groupId>com.xiaofeiyang</groupId>
+    <artifactId>expense-starter-redis</artifactId>
 </dependency>
 
 <!-- ✅ 服务特有依赖 -->
 <dependency>
     <groupId>com.alibaba</groupId>
-    <artifactId>easyexcel</artifactId>                        <!-- 仅 statistics + bill -->
+    <artifactId>easyexcel</artifactId>  <!-- 仅 statistics + bill -->
 </dependency>
 ```
 
 **服务 application.yml — 最小化写法：**
 ```yaml
-# ✅ 仅保留服务特有配置，框架已覆盖通用部分
+# ✅ 仅保留服务特有配置，starter 已覆盖通用部分
 server:
   port: 8082
 spring:
@@ -398,9 +388,21 @@ spring:
     nacos:
       discovery:
         server-addr: ${NACOS_SERVER:127.0.0.1:8848}
-        namespace: ${NACOS_NAMESPACE:dev}
+        namespace: ${NACOS_NAMESPACE:}
         group: expense-cloud
-# 不需要写：datasource / flyway / mybatis-plus / management — 框架 + opt-in 已覆盖
+# 不需要写：datasource / flyway / mybatis-plus / management — starter 已覆盖
+```
+
+### 1.6.9 新增组件 checklist
+
+```
+☐ 1. 按 §1.6.2 判定流程选择目标 starter
+☐ 2. 目标 starter POM 中添加依赖（非 optional）
+☐ 3. 创建 Framework{Name}AutoConfiguration（加 @ConditionalOnClass）
+☐ 4. 属性放入对应 properties 文件（web → framework-defaults, orm → framework-mybatis-defaults, redis → framework-redis-defaults）
+☐ 5. 在目标 starter 的 AutoConfiguration.imports 中注册
+☐ 6. 更新本文档 §1.6 的组件清单
+☐ 7. 编译验证：不引入该 starter 的服务启动零报错
 ```
 
 ### 1.6.9 Jackson ObjectMapper 规范
