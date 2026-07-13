@@ -78,10 +78,22 @@ backend/
 ├── expense-starter-orm/             # ORM Starter（MyBatis/DataSource/Flyway，含 web）
 ├── expense-starter-redis/           # Redis Starter（Redis 配置，含 web）
 │
-├── expense-gateway/                 # API 网关（单模块）
-├── expense-user/                    # 用户服务（单模块，待拆三模块）
-├── expense-budget/                  # 预算服务（单模块，待拆三模块）
-├── expense-ai/                      # AI 服务（单模块，待拆三模块）
+├── expense-gateway/                 # API 网关（单模块，reactive 栈）
+│
+├── expense-user/                    # 用户服务（三模块）
+│   ├── expense-user-api/            #   Feign 接口 + DTO
+│   ├── expense-user-common/         #   共享 DTO
+│   └── expense-user-application/    #   Controller + Service + Mapper
+│
+├── expense-budget/                  # 预算服务（三模块）
+│   ├── expense-budget-api/
+│   ├── expense-budget-common/
+│   └── expense-budget-application/
+│
+├── expense-ai/                      # AI 服务（三模块）
+│   ├── expense-ai-api/
+│   ├── expense-ai-common/
+│   └── expense-ai-application/
 │
 ├── expense-category/                # 分类服务（三模块）
 │   ├── expense-category-api/        #   Feign 接口 + DTO
