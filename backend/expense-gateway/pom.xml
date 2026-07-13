@@ -22,7 +22,7 @@
             <artifactId>spring-cloud-starter-gateway</artifactId>
         </dependency>
 
-        <!-- Spring Cloud LoadBalancer — Gateway uses reactive stack, cannot use expense-framework -->
+        <!-- Spring Cloud LoadBalancer — Gateway uses reactive stack, cannot use expense-starter-* (Spring MVC based) -->
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-starter-loadbalancer</artifactId>
