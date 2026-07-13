@@ -20,8 +20,8 @@ const props = defineProps<{ points: TrendPoint[] }>()
 
 const option = computed(() => ({
   tooltip: { trigger: 'axis' },
-  legend: { data: ['收入', '支出', '结余'], bottom: 0 },
-  grid: { left: 50, right: 20, top: 20, bottom: 30 },
+  legend: { data: ['收入', '支出', '结余'], top: 0, right: 0 },
+  grid: { left: 50, right: 20, top: 35, bottom: 20 },
   xAxis: {
     type: 'category',
     data: props.points.map(p => `${p.month}月`)
