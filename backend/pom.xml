@@ -36,9 +36,15 @@
         <module>expense-statistics/expense-statistics-common</module>
         <module>expense-statistics/expense-statistics-application</module>
         <!-- Service applications (runtime, NOT published as dependency) -->
-        <module>expense-user</module>
-        <module>expense-ai</module>
-        <module>expense-budget</module>
+        <module>expense-user-api</module>
+        <module>expense-user-common</module>
+        <module>expense-user-application</module>
+        <module>expense-ai-api</module>
+        <module>expense-ai-common</module>
+        <module>expense-ai-application</module>
+        <module>expense-budget-api</module>
+        <module>expense-budget-common</module>
+        <module>expense-budget-application</module>
         <module>expense-gateway</module>
     </modules>
 
@@ -221,11 +227,6 @@
             <!-- Internal Modules — Applications (full runtime, not published) -->
             <dependency>
                 <groupId>com.xiaofeiyang</groupId>
-                <artifactId>expense-user</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.xiaofeiyang</groupId>
                 <artifactId>expense-category-application</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -241,12 +242,50 @@
             </dependency>
             <dependency>
                 <groupId>com.xiaofeiyang</groupId>
-                <artifactId>expense-ai</artifactId>
+                <artifactId>expense-user-application</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.xiaofeiyang</groupId>
-                <artifactId>expense-budget</artifactId>
+                <artifactId>expense-ai-application</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-budget-application</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- User API/Common -->
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-user-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-user-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- AI API/Common -->
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-ai-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-ai-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <!-- Budget API/Common -->
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-budget-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xiaofeiyang</groupId>
+                <artifactId>expense-budget-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

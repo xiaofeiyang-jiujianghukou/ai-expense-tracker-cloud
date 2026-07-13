@@ -163,7 +163,7 @@ services:
   expense-user:
     build:
       context: ./backend
-      dockerfile: expense-user/Dockerfile
+      dockerfile: expense-user-application/Dockerfile
     container_name: expense-user
     ports:
       - "8081:8081"
@@ -257,7 +257,7 @@ services:
   expense-budget:
     build:
       context: ./backend
-      dockerfile: expense-budget/Dockerfile
+      dockerfile: expense-budget-application/Dockerfile
     container_name: expense-budget
     ports:
       - "8086:8086"
@@ -319,7 +319,7 @@ services:
   expense-ai:
     build:
       context: ./backend
-      dockerfile: expense-ai/Dockerfile
+      dockerfile: expense-ai-application/Dockerfile
     container_name: expense-ai
     ports:
       - "8085:8085"

@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.xiaofeiyang</groupId>
+        <artifactId>expense-cloud</artifactId>
+        <version>4.0.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>expense-ai-application</artifactId>
+    <packaging>jar</packaging>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-ai-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-ai-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-starter-orm</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-starter-redis</artifactId>
+        </dependency>
+        <!-- Phase 1: direct calls to StatisticsManager, BillMapper -->
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-statistics-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-bill-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-category-common</artifactId>
+        </dependency>
+        <!-- Feign clients for inter-service calls -->
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-statistics-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-category-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.xiaofeiyang</groupId>
+            <artifactId>expense-bill-api</artifactId>
+        </dependency>
+        <!-- LLM -->
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-openai-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.agentscope</groupId>
+            <artifactId>agentscope-harness</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>transmittable-thread-local</artifactId>
+            <version>2.14.5</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <mainClass>com.xiaofeiyang.expense.ai.AiServiceApplication</mainClass>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
